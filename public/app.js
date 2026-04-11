@@ -1,7 +1,6 @@
 // ========== 常量与配置 ==========
 const STORAGE_KEYS = {
   USER: 'travel_user',
-  TEAMS: 'travel_teams',
   THEME: 'theme',
 };
 
@@ -19,20 +18,10 @@ const AVATAR_COLORS = [
   'bg-pink-100 dark:bg-pink-900/30',
 ];
 
+// 缓存的小分队列表（从服务器获取）
+let cachedTeams = [];
+
 // ========== 工具函数 ==========
-function generateId(prefix = '') {
-  return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-}
-
-function generateJoinCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
-}
-
 function formatDate(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -40,7 +29,6 @@ function formatDate(dateStr) {
 }
 
 function showToast(message, type = 'info') {
-  // 移除旧的 toast
   document.querySelectorAll('.toast').forEach(t => t.remove());
 
   const toast = document.createElement('div');
@@ -53,6 +41,12 @@ function showToast(message, type = 'info') {
     toast.style.transform = 'translate(-50%, -20px)';
     setTimeout(() => toast.remove(), 300);
   }, 2500);
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
 // ========== 数据存取 ==========
@@ -70,18 +64,6 @@ function setUser(user) {
 
 function clearUser() {
   localStorage.removeItem(STORAGE_KEYS.USER);
-}
-
-function getTeams() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.TEAMS)) || [];
-  } catch {
-    return [];
-  }
-}
-
-function saveTeams(teams) {
-  localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
 }
 
 // ========== 主题切换 ==========
@@ -104,6 +86,21 @@ function toggleTheme() {
   applyTheme(!isDark);
 }
 
+// ========== 初始化应用（自动登录） ==========
+async function initApp() {
+  try {
+    const meRes = await fetch('/auth/me');
+    if (meRes.ok) {
+      const user = await meRes.json();
+      setUser(user);
+    }
+  } catch {
+    // 网络错误，使用 localStorage 中的用户
+  }
+
+  updateUIForUserState();
+}
+
 // ========== 页面导航 ==========
 function navigateTo(pageName) {
   document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
@@ -123,7 +120,6 @@ function navigateTo(pageName) {
   document.getElementById('mobileMenu').classList.add('hidden');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  // 页面进入时刷新数据
   if (pageName === 'teams') renderTeamsPage();
   if (pageName === 'profile') renderProfilePage();
 }
@@ -157,7 +153,6 @@ function updateUIForUserState() {
   const avatarBtn = document.getElementById('userAvatarBtn');
 
   if (user) {
-    // 更新导航栏头像
     avatarBtn.innerHTML = `<span class="text-xl">${user.avatar}</span>`;
     avatarBtn.onclick = () => navigateTo('profile');
   } else {
@@ -183,28 +178,43 @@ function hideLoginModal() {
   document.getElementById('loginModal').classList.add('hidden');
 }
 
-function handleWechatLogin() {
+async function handleLogin() {
   const nickname = document.getElementById('loginNickname').value.trim();
   if (!nickname) {
     showToast('请输入昵称', 'error');
     return;
   }
 
-  const user = {
-    id: generateId('wx_'),
-    nickname: nickname,
-    avatar: loginSelectedAvatar,
-    loginTime: Date.now(),
-  };
+  try {
+    const res = await fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nickname, avatar: loginSelectedAvatar }),
+    });
 
-  setUser(user);
-  hideLoginModal();
-  updateUIForUserState();
-  showToast('登录成功！', 'success');
+    if (res.ok) {
+      const user = await res.json();
+      setUser(user);
+      hideLoginModal();
+      updateUIForUserState();
+      showToast('登录成功！', 'success');
+    } else {
+      const data = await res.json();
+      showToast(data.error || '登录失败', 'error');
+    }
+  } catch {
+    showToast('网络错误，请检查连接', 'error');
+  }
 }
 
-function logout() {
+async function logout() {
+  try {
+    await fetch('/auth/logout', { method: 'POST' });
+  } catch {
+    // 忽略
+  }
   clearUser();
+  cachedTeams = [];
   updateUIForUserState();
   navigateTo('home');
   showToast('已退出登录', 'info');
@@ -225,7 +235,8 @@ function renderProfilePage() {
   loginPrompt.classList.add('hidden');
   content.classList.remove('hidden');
 
-  document.getElementById('profileAvatar').textContent = user.avatar;
+  const profileAvatar = document.getElementById('profileAvatar');
+  profileAvatar.textContent = user.avatar;
   document.getElementById('profileNickname').textContent = user.nickname;
 }
 
@@ -235,8 +246,7 @@ function showEditProfileModal() {
   const user = getUser();
   if (!user) return;
 
-  const modal = document.getElementById('editProfileModal');
-  modal.classList.remove('hidden');
+  document.getElementById('editProfileModal').classList.remove('hidden');
 
   editSelectedAvatar = user.avatar;
   document.getElementById('editNickname').value = user.nickname;
@@ -260,8 +270,8 @@ function saveProfile() {
     return;
   }
 
-  user.nickname = nickname;
   user.avatar = editSelectedAvatar;
+  user.nickname = nickname;
   setUser(user);
 
   closeEditProfileModal();
@@ -288,16 +298,26 @@ function renderTeamsPage() {
   renderTeamsList();
 }
 
-function renderTeamsList() {
+async function renderTeamsList() {
   const user = getUser();
   if (!user) return;
 
-  const teams = getTeams().filter(t =>
-    t.members.some(m => m.id === user.id)
-  );
-
   const listEl = document.getElementById('teamsList');
   const emptyEl = document.getElementById('emptyTeams');
+
+  try {
+    const res = await fetch('/teams');
+    if (res.ok) {
+      cachedTeams = await res.json();
+    } else if (res.status === 401) {
+      // 未登录，不处理（页面层已处理）
+      return;
+    }
+  } catch {
+    // 网络错误，使用缓存
+  }
+
+  const teams = cachedTeams;
 
   if (teams.length === 0) {
     listEl.innerHTML = '';
@@ -309,7 +329,7 @@ function renderTeamsList() {
   listEl.innerHTML = teams.map(team => {
     const isCreator = team.creatorId === user.id;
     const memberAvatars = team.members.slice(0, 5).map(m =>
-      `<span class="member-avatar ${AVATAR_COLORS[m.id.charCodeAt(0) % AVATAR_COLORS.length]}" title="${m.nickname}">${m.avatar}</span>`
+      `<span class="member-avatar ${AVATAR_COLORS[m.id.charCodeAt(0) % AVATAR_COLORS.length]}" title="${escapeHtml(m.nickname)}">${m.avatar}</span>`
     ).join('');
     const extraCount = team.members.length > 5 ? `<span class="member-avatar bg-gray-100 dark:bg-gray-600 text-xs text-gray-500">+${team.members.length - 5}</span>` : '';
 
@@ -338,12 +358,6 @@ function renderTeamsList() {
   }).join('');
 }
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
 // 创建小分队
 function showCreateTeamModal() {
   if (!getUser()) { showLoginModal(); return; }
@@ -359,7 +373,7 @@ function closeCreateTeamModal() {
   document.getElementById('createTeamModal').classList.add('hidden');
 }
 
-function createTeam() {
+async function createTeam() {
   const user = getUser();
   if (!user) return;
 
@@ -369,31 +383,30 @@ function createTeam() {
     return;
   }
 
-  const team = {
-    id: generateId('team_'),
-    name: name,
-    destination: document.getElementById('teamDest').value.trim(),
-    startDate: document.getElementById('teamStartDate').value,
-    endDate: document.getElementById('teamEndDate').value,
-    description: document.getElementById('teamDesc').value.trim(),
-    joinCode: generateJoinCode(),
-    creatorId: user.id,
-    members: [{
-      id: user.id,
-      nickname: user.nickname,
-      avatar: user.avatar,
-      joinedAt: Date.now(),
-    }],
-    createdAt: Date.now(),
-  };
+  try {
+    const res = await fetch('/teams', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        destination: document.getElementById('teamDest').value.trim(),
+        startDate: document.getElementById('teamStartDate').value,
+        endDate: document.getElementById('teamEndDate').value,
+        description: document.getElementById('teamDesc').value.trim(),
+      }),
+    });
 
-  const teams = getTeams();
-  teams.push(team);
-  saveTeams(teams);
-
-  closeCreateTeamModal();
-  renderTeamsList();
-  showToast('小分队创建成功！', 'success');
+    if (res.ok) {
+      closeCreateTeamModal();
+      renderTeamsList();
+      showToast('小分队创建成功！', 'success');
+    } else {
+      const data = await res.json();
+      showToast(data.error || '创建失败', 'error');
+    }
+  } catch {
+    showToast('网络错误，请检查连接', 'error');
+  }
 }
 
 // 加入小分队
@@ -407,7 +420,7 @@ function closeJoinTeamModal() {
   document.getElementById('joinTeamModal').classList.add('hidden');
 }
 
-function joinTeam() {
+async function joinTeam() {
   const user = getUser();
   if (!user) return;
 
@@ -417,45 +430,48 @@ function joinTeam() {
     return;
   }
 
-  const teams = getTeams();
-  const team = teams.find(t => t.joinCode === code);
+  try {
+    const res = await fetch('/teams/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
 
-  if (!team) {
-    showToast('邀请码无效，请检查后重试', 'error');
-    return;
+    if (res.ok) {
+      const team = await res.json();
+      closeJoinTeamModal();
+      renderTeamsList();
+      showToast(`成功加入「${team.name}」！`, 'success');
+    } else {
+      const data = await res.json();
+      showToast(data.error || '加入失败', 'error');
+    }
+  } catch {
+    showToast('网络错误，请检查连接', 'error');
   }
-
-  if (team.members.some(m => m.id === user.id)) {
-    showToast('你已经在这个小分队中了', 'error');
-    return;
-  }
-
-  team.members.push({
-    id: user.id,
-    nickname: user.nickname,
-    avatar: user.avatar,
-    joinedAt: Date.now(),
-  });
-
-  saveTeams(teams);
-  closeJoinTeamModal();
-  renderTeamsList();
-  showToast(`成功加入「${team.name}」！`, 'success');
 }
 
 // 小分队详情
 let currentTeamId = null;
 
-function showTeamDetail(teamId) {
-  const teams = getTeams();
-  const team = teams.find(t => t.id === teamId);
-  if (!team) return;
+async function showTeamDetail(teamId) {
+  const user = getUser();
+
+  try {
+    const res = await fetch('/teams/' + teamId);
+    if (!res.ok) {
+      showToast('小分队不存在', 'error');
+      return;
+    }
+    var team = await res.json();
+  } catch {
+    showToast('网络错误', 'error');
+    return;
+  }
 
   currentTeamId = teamId;
-
   document.getElementById('teamDetailTitle').textContent = team.name;
 
-  const user = getUser();
   const isCreator = user && team.creatorId === user.id;
 
   const dateStr = (team.startDate && team.endDate)
@@ -503,13 +519,11 @@ function showTeamDetail(teamId) {
         <h3 class="font-semibold text-gray-700 dark:text-gray-300">成员 (${team.members.length})</h3>
       </div>
       <div class="divide-y divide-gray-100 dark:divide-gray-700">
-        ${team.members.map((m, i) => {
+        ${team.members.map(m => {
           const isTeamCreator = m.id === team.creatorId;
           return `
             <div class="flex items-center gap-3 px-5 py-3">
-              <span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[m.id.charCodeAt(0) % AVATAR_COLORS.length]}">
-                ${m.avatar}
-              </span>
+              <span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[m.id.charCodeAt(0) % AVATAR_COLORS.length]}">${m.avatar}</span>
               <div class="flex-1 min-w-0">
                 <p class="font-medium truncate">${escapeHtml(m.nickname)}${m.id === (user && user.id) ? ' <span class="text-xs text-gray-400">(我)</span>' : ''}</p>
                 <p class="text-xs text-gray-400 dark:text-gray-500">${isTeamCreator ? '队长' : '队员'} · ${new Date(m.joinedAt).toLocaleDateString()}</p>
@@ -540,7 +554,6 @@ function showTeamDetail(teamId) {
   `;
 
   navigateTo('team-detail');
-  // 手动修正 tab 高亮（team-detail 不在 tab 中）
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
 }
 
@@ -550,7 +563,6 @@ function copyJoinCode(code) {
       showToast('邀请码已复制', 'success');
     });
   } else {
-    // fallback
     const input = document.createElement('input');
     input.value = code;
     document.body.appendChild(input);
@@ -561,75 +573,84 @@ function copyJoinCode(code) {
   }
 }
 
-function removeMember(teamId, memberId) {
-  const teams = getTeams();
-  const team = teams.find(t => t.id === teamId);
-  if (!team) return;
-
+async function removeMember(teamId, memberId) {
   const user = getUser();
-  if (!user || team.creatorId !== user.id) return;
+  if (!user) return;
 
-  const member = team.members.find(m => m.id === memberId);
+  // 先获取 team 以显示成员昵称
+  const team = cachedTeams.find(t => t.id === teamId);
+  const member = team && team.members.find(m => m.id === memberId);
   if (!member) return;
 
   if (!confirm(`确定要移除「${member.nickname}」吗？`)) return;
 
-  team.members = team.members.filter(m => m.id !== memberId);
-  saveTeams(teams);
-  showTeamDetail(teamId);
-  showToast('已移除成员', 'info');
+  try {
+    const res = await fetch(`/teams/${teamId}/remove-member`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId }),
+    });
+
+    if (res.ok) {
+      showTeamDetail(teamId);
+      showToast('已移除成员', 'info');
+    } else {
+      const data = await res.json();
+      showToast(data.error || '操作失败', 'error');
+    }
+  } catch {
+    showToast('网络错误', 'error');
+  }
 }
 
-function leaveTeam(teamId) {
-  const user = getUser();
-  if (!user) return;
-
+async function leaveTeam(teamId) {
   if (!confirm('确定要退出这个小分队吗？')) return;
 
-  const teams = getTeams();
-  const team = teams.find(t => t.id === teamId);
-  if (!team) return;
-
-  team.members = team.members.filter(m => m.id !== user.id);
-  saveTeams(teams);
-  navigateTo('teams');
-  showToast('已退出小分队', 'info');
+  try {
+    const res = await fetch(`/teams/${teamId}/leave`, { method: 'POST' });
+    if (res.ok) {
+      navigateTo('teams');
+      showToast('已退出小分队', 'info');
+    } else {
+      const data = await res.json();
+      showToast(data.error || '操作失败', 'error');
+    }
+  } catch {
+    showToast('网络错误', 'error');
+  }
 }
 
-function disbandTeam(teamId) {
-  const user = getUser();
-  if (!user) return;
-
+async function disbandTeam(teamId) {
   if (!confirm('确定要解散这个小分队吗？此操作不可撤销！')) return;
 
-  let teams = getTeams();
-  teams = teams.filter(t => t.id !== teamId);
-  saveTeams(teams);
-  navigateTo('teams');
-  showToast('小分队已解散', 'info');
+  try {
+    const res = await fetch(`/teams/${teamId}/disband`, { method: 'POST' });
+    if (res.ok) {
+      navigateTo('teams');
+      showToast('小分队已解散', 'info');
+    } else {
+      const data = await res.json();
+      showToast(data.error || '操作失败', 'error');
+    }
+  } catch {
+    showToast('网络错误', 'error');
+  }
 }
 
 // ========== 事件绑定 ==========
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
 
-  // 主题切换
   document.getElementById('themeToggle').addEventListener('click', toggleTheme);
-
-  // 移动端菜单按钮
   document.getElementById('menuToggle').addEventListener('click', toggleMobileMenu);
 
-  // 所有带 data-page 的导航按钮
   document.querySelectorAll('[data-page]').forEach(btn => {
     btn.addEventListener('click', () => navigateTo(btn.dataset.page));
   });
 
-  // 用户头像按钮
-  updateUIForUserState();
+  document.getElementById('loginBtn').addEventListener('click', handleLogin);
 
-  // 微信登录按钮
-  document.getElementById('wechatLoginBtn').addEventListener('click', handleWechatLogin);
-
-  // 登录模态框点击背景关闭
   document.querySelector('#loginModal .modal-backdrop').addEventListener('click', hideLoginModal);
+
+  initApp();
 });
