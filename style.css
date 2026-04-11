@@ -47,3 +47,99 @@
 .tab-btn.active {
   @apply text-blue-600 dark:text-blue-400;
 }
+
+/* ========== 模态框 ========== */
+.modal {
+  @apply fixed inset-0 z-[100] flex items-center justify-center p-4;
+}
+.modal.hidden {
+  display: none;
+}
+.modal-backdrop {
+  @apply absolute inset-0 bg-black/50 backdrop-blur-sm;
+}
+.modal-content {
+  @apply relative bg-white dark:bg-gray-800 rounded-2xl p-6 w-full
+         border border-gray-200 dark:border-gray-700 shadow-2xl
+         max-h-[90vh] overflow-y-auto;
+  animation: modalIn 0.2s ease-out;
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ========== 表单输入 ========== */
+.form-input {
+  @apply w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600
+         bg-white dark:bg-gray-700 focus:outline-none focus:ring-2
+         focus:ring-primary-500 focus:border-transparent transition;
+}
+
+/* ========== 用户头像按钮 ========== */
+.user-avatar-btn {
+  @apply w-9 h-9 rounded-full flex items-center justify-center
+         bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600
+         transition-colors overflow-hidden;
+}
+.user-avatar-btn img {
+  @apply w-full h-full object-cover;
+}
+
+/* ========== 头像选择器 ========== */
+.avatar-option {
+  @apply w-12 h-12 rounded-full flex items-center justify-center text-2xl cursor-pointer
+         border-2 border-transparent hover:border-primary-400 transition-all
+         hover:scale-110 active:scale-95;
+}
+.avatar-option.selected {
+  @apply border-primary-500 ring-2 ring-primary-200 dark:ring-primary-800;
+}
+
+/* ========== 小分队卡片 ========== */
+.team-card {
+  @apply bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700
+         hover:shadow-md hover:border-blue-200 dark:hover:border-blue-700
+         transition-all cursor-pointer active:scale-[0.99];
+}
+
+/* ========== 成员头像 ========== */
+.member-avatar {
+  @apply w-10 h-10 rounded-full flex items-center justify-center text-xl
+         border-2 border-white dark:border-gray-800;
+}
+
+/* ========== Toast 提示 ========== */
+.toast {
+  @apply fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-5 py-2.5
+         rounded-lg shadow-lg text-white text-sm font-medium
+         transition-all duration-300;
+  animation: toastIn 0.3s ease-out;
+}
+.toast.success {
+  @apply bg-green-500;
+}
+.toast.error {
+  @apply bg-red-500;
+}
+.toast.info {
+  @apply bg-primary-500;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}

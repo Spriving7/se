@@ -22,7 +22,8 @@
               700: '#1d4ed8',
               800: '#1e40af',
               900: '#1e3a8a',
-            }
+            },
+            wechat: '#07C160',
           }
         }
       }
@@ -37,7 +38,7 @@
   <nav class="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
     <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
       <!-- Logo -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 cursor-pointer" onclick="navigateTo('home')">
         <span class="text-2xl">✈️</span>
         <span class="text-lg font-bold bg-gradient-to-r from-blue-500 to-cyan-400 bg-clip-text text-transparent">
           旅游小助手
@@ -47,6 +48,7 @@
       <!-- 桌面端导航 -->
       <div class="hidden md:flex items-center gap-1">
         <button class="nav-btn active" data-page="home">首页</button>
+        <button class="nav-btn" data-page="teams">小分队</button>
         <button class="nav-btn" data-page="aa">AA 记账</button>
         <button class="nav-btn" data-page="game">在线桌游</button>
       </div>
@@ -56,6 +58,10 @@
         <!-- 主题切换 -->
         <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="切换主题">
           <span id="themeIcon" class="text-xl">🌙</span>
+        </button>
+        <!-- 用户头像/登录 -->
+        <button id="userAvatarBtn" class="user-avatar-btn" title="个人中心">
+          <span class="text-xl">👤</span>
         </button>
         <!-- 移动端菜单按钮 -->
         <button id="menuToggle" class="md:hidden p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
@@ -68,11 +74,160 @@
     <div id="mobileMenu" class="hidden md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
       <div class="px-4 py-2 space-y-1">
         <button class="mobile-nav-btn active" data-page="home">🏠 首页</button>
+        <button class="mobile-nav-btn" data-page="teams">👥 小分队</button>
         <button class="mobile-nav-btn" data-page="aa">💰 AA 记账</button>
         <button class="mobile-nav-btn" data-page="game">🎲 在线桌游</button>
       </div>
     </div>
   </nav>
+
+  <!-- ========== 登录模态框 ========== -->
+  <div id="loginModal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content max-w-sm">
+      <div class="text-center">
+        <div class="text-5xl mb-3">✈️</div>
+        <h2 class="text-xl font-bold mb-1">欢迎来到旅游小助手</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">登录后即可创建和加入旅游小分队</p>
+
+        <!-- 设置昵称 -->
+        <div class="mb-4">
+          <input id="loginNickname" type="text" placeholder="输入你的昵称" maxlength="20"
+            class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600
+                   bg-white dark:bg-gray-700 text-center text-lg focus:outline-none
+                   focus:ring-2 focus:ring-green-400 focus:border-transparent transition">
+        </div>
+
+        <!-- 选择头像 -->
+        <div class="mb-6">
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">选择一个头像</p>
+          <div id="avatarPicker" class="flex flex-wrap justify-center gap-3">
+            <!-- 头像选项由 JS 生成 -->
+          </div>
+        </div>
+
+        <!-- 微信登录按钮（模拟） -->
+        <button id="wechatLoginBtn" class="w-full py-3 rounded-lg bg-wechat hover:bg-green-600
+          text-white font-bold text-base flex items-center justify-center gap-2 transition-colors">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 01.213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 00.167-.054l1.903-1.114a.864.864 0 01.717-.098 10.16 10.16 0 002.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178A1.17 1.17 0 014.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178 1.17 1.17 0 01-1.162-1.178c0-.651.52-1.18 1.162-1.18zm5.34 2.867c-1.797-.052-3.746.512-5.28 1.786-1.72 1.428-2.687 3.72-1.78 6.22.942 2.453 3.666 4.229 6.884 4.229.826 0 1.622-.12 2.361-.336a.722.722 0 01.598.082l1.584.926a.272.272 0 00.14.045c.133 0 .241-.108.241-.243 0-.06-.023-.118-.039-.174l-.327-1.233a.582.582 0 01-.023-.156.49.49 0 01.201-.398C23.024 18.48 24 16.82 24 14.98c0-3.21-2.931-5.837-7.062-6.122zm-2.18 2.769c.535 0 .969.44.969.982a.976.976 0 01-.969.983.976.976 0 01-.969-.983c0-.542.434-.982.97-.982zm4.844 0c.535 0 .969.44.969.982a.976.976 0 01-.969.983.976.976 0 01-.969-.983c0-.542.434-.982.97-.982z"/>
+          </svg>
+          微信一键登录
+        </button>
+
+        <p class="text-xs text-gray-400 dark:text-gray-500 mt-3">
+          点击登录即表示同意《用户协议》和《隐私政策》
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 创建小分队模态框 ========== -->
+  <div id="createTeamModal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeCreateTeamModal()"></div>
+    <div class="modal-content max-w-md">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-bold">创建旅游小分队</h2>
+        <button onclick="closeCreateTeamModal()" class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 text-xl">&times;</button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">小分队名称 <span class="text-red-500">*</span></label>
+          <input id="teamName" type="text" placeholder="例：三亚欢乐游" maxlength="30"
+            class="form-input">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">目的地</label>
+          <input id="teamDest" type="text" placeholder="例：海南三亚" maxlength="50"
+            class="form-input">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">出发日期</label>
+            <input id="teamStartDate" type="date" class="form-input">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">返回日期</label>
+            <input id="teamEndDate" type="date" class="form-input">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">描述</label>
+          <textarea id="teamDesc" rows="3" placeholder="描述一下这次旅行…" maxlength="200"
+            class="form-input resize-none"></textarea>
+        </div>
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button onclick="closeCreateTeamModal()" class="flex-1 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          取消
+        </button>
+        <button onclick="createTeam()" class="flex-1 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">
+          创建
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 加入小分队模态框 ========== -->
+  <div id="joinTeamModal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeJoinTeamModal()"></div>
+    <div class="modal-content max-w-sm">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-bold">加入小分队</h2>
+        <button onclick="closeJoinTeamModal()" class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 text-xl">&times;</button>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">输入邀请码</label>
+        <input id="joinCode" type="text" placeholder="请输入6位邀请码" maxlength="6"
+          class="form-input text-center text-2xl tracking-[0.5em] uppercase">
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button onclick="closeJoinTeamModal()" class="flex-1 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          取消
+        </button>
+        <button onclick="joinTeam()" class="flex-1 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">
+          加入
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 编辑资料模态框 ========== -->
+  <div id="editProfileModal" class="modal hidden">
+    <div class="modal-backdrop" onclick="closeEditProfileModal()"></div>
+    <div class="modal-content max-w-sm">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-lg font-bold">编辑资料</h2>
+        <button onclick="closeEditProfileModal()" class="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 text-xl">&times;</button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">头像</label>
+          <div id="editAvatarPicker" class="flex flex-wrap gap-3">
+            <!-- 由 JS 生成 -->
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">昵称</label>
+          <input id="editNickname" type="text" placeholder="输入昵称" maxlength="20" class="form-input">
+        </div>
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button onclick="closeEditProfileModal()" class="flex-1 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          取消
+        </button>
+        <button onclick="saveProfile()" class="flex-1 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">
+          保存
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- ========== 页面内容区 ========== -->
   <main class="max-w-5xl mx-auto px-4 py-6">
@@ -88,6 +243,18 @@
       <!-- 功能卡片 -->
       <h2 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">功能一览</h2>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+
+        <button class="feature-card" data-page="teams">
+          <div class="flex items-start gap-4">
+            <span class="text-4xl">👥</span>
+            <div class="text-left">
+              <h3 class="font-bold text-lg">旅游小分队</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                创建或加入旅游小分队，和小伙伴一起出发
+              </p>
+            </div>
+          </div>
+        </button>
 
         <button class="feature-card" data-page="aa">
           <div class="flex items-start gap-4">
@@ -115,16 +282,6 @@
 
         <button class="feature-card opacity-50 cursor-not-allowed" disabled>
           <div class="flex items-start gap-4">
-            <span class="text-4xl">🗺️</span>
-            <div class="text-left">
-              <h3 class="font-bold text-lg">行程规划</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">即将上线…</p>
-            </div>
-          </div>
-        </button>
-
-        <button class="feature-card opacity-50 cursor-not-allowed" disabled>
-          <div class="flex items-start gap-4">
             <span class="text-4xl">📸</span>
             <div class="text-left">
               <h3 class="font-bold text-lg">旅行相册</h3>
@@ -133,6 +290,64 @@
           </div>
         </button>
 
+      </div>
+    </section>
+
+    <!-- ========== 小分队列表页 ========== -->
+    <section id="page-teams" class="page hidden">
+      <div class="flex items-center gap-3 mb-6">
+        <button class="back-btn md:hidden" data-page="home">←</button>
+        <h1 class="text-2xl font-bold">👥 旅游小分队</h1>
+      </div>
+
+      <!-- 未登录提示 -->
+      <div id="teamsLoginPrompt" class="hidden">
+        <div class="placeholder-card">
+          <span class="text-5xl mb-4">🔒</span>
+          <p class="text-gray-500 dark:text-gray-400 text-lg font-medium">请先登录</p>
+          <p class="text-gray-400 dark:text-gray-500 text-sm mt-1 mb-4">登录后即可创建和加入旅游小分队</p>
+          <button onclick="showLoginModal()" class="px-6 py-2 rounded-lg bg-wechat hover:bg-green-600 text-white font-medium transition-colors">
+            微信登录
+          </button>
+        </div>
+      </div>
+
+      <!-- 已登录内容 -->
+      <div id="teamsContent" class="hidden">
+        <!-- 操作按钮 -->
+        <div class="flex gap-3 mb-6">
+          <button onclick="showCreateTeamModal()" class="flex-1 py-3 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-medium flex items-center justify-center gap-2 transition-colors">
+            <span class="text-lg">+</span> 创建小分队
+          </button>
+          <button onclick="showJoinTeamModal()" class="flex-1 py-3 rounded-xl border-2 border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 font-medium flex items-center justify-center gap-2 transition-colors">
+            🔗 加入小分队
+          </button>
+        </div>
+
+        <!-- 我的小分队列表 -->
+        <h2 class="text-base font-semibold text-gray-600 dark:text-gray-400 mb-3">我的小分队</h2>
+        <div id="teamsList">
+          <!-- 由 JS 动态生成 -->
+        </div>
+        <div id="emptyTeams" class="hidden">
+          <div class="placeholder-card">
+            <span class="text-5xl mb-4">🗺️</span>
+            <p class="text-gray-400 dark:text-gray-500 text-lg">还没有小分队</p>
+            <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">创建一个小分队，邀请小伙伴一起出发吧！</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 小分队详情页 ========== -->
+    <section id="page-team-detail" class="page hidden">
+      <div class="flex items-center gap-3 mb-6">
+        <button class="back-btn" data-page="teams">←</button>
+        <h1 id="teamDetailTitle" class="text-xl font-bold truncate">小分队名称</h1>
+      </div>
+
+      <div id="teamDetailContent">
+        <!-- 由 JS 动态生成 -->
       </div>
     </section>
 
@@ -160,6 +375,73 @@
       </div>
     </section>
 
+    <!-- ========== 个人中心页 ========== -->
+    <section id="page-profile" class="page hidden">
+      <div class="flex items-center gap-3 mb-6">
+        <button class="back-btn md:hidden" data-page="home">←</button>
+        <h1 class="text-2xl font-bold">个人中心</h1>
+      </div>
+
+      <!-- 未登录 -->
+      <div id="profileLoginPrompt" class="hidden">
+        <div class="placeholder-card">
+          <span class="text-5xl mb-4">👤</span>
+          <p class="text-gray-500 dark:text-gray-400 text-lg font-medium">尚未登录</p>
+          <button onclick="showLoginModal()" class="mt-4 px-6 py-2 rounded-lg bg-wechat hover:bg-green-600 text-white font-medium transition-colors">
+            微信登录
+          </button>
+        </div>
+      </div>
+
+      <!-- 已登录 -->
+      <div id="profileContent" class="hidden">
+        <!-- 用户信息卡片 -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700 mb-6">
+          <div class="flex items-center gap-4">
+            <div id="profileAvatar" class="w-16 h-16 rounded-full flex items-center justify-center text-3xl bg-primary-100 dark:bg-primary-900/30">
+              <!-- 由 JS 填充 -->
+            </div>
+            <div class="flex-1 min-w-0">
+              <h2 id="profileNickname" class="text-lg font-bold truncate">用户昵称</h2>
+              <p class="text-sm text-gray-500 dark:text-gray-400">微信用户</p>
+            </div>
+            <button onclick="showEditProfileModal()" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="编辑资料">
+              ✏️
+            </button>
+          </div>
+        </div>
+
+        <!-- 功能列表 -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <button onclick="navigateTo('teams')" class="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-100 dark:border-gray-700">
+            <span class="text-xl">👥</span>
+            <span class="flex-1 text-left">我的小分队</span>
+            <span class="text-gray-400">›</span>
+          </button>
+          <button onclick="navigateTo('aa')" class="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-100 dark:border-gray-700">
+            <span class="text-xl">💰</span>
+            <span class="flex-1 text-left">AA 记账</span>
+            <span class="text-gray-400">›</span>
+          </button>
+          <button onclick="navigateTo('game')" class="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors border-b border-gray-100 dark:border-gray-700">
+            <span class="text-xl">🎲</span>
+            <span class="flex-1 text-left">在线桌游</span>
+            <span class="text-gray-400">›</span>
+          </button>
+          <button onclick="toggleTheme()" class="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+            <span class="text-xl">🌓</span>
+            <span class="flex-1 text-left">切换主题</span>
+            <span class="text-gray-400">›</span>
+          </button>
+        </div>
+
+        <!-- 退出登录 -->
+        <button onclick="logout()" class="w-full mt-6 py-3 rounded-xl border border-red-300 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors">
+          退出登录
+        </button>
+      </div>
+    </section>
+
   </main>
 
   <!-- ========== 移动端底部 Tab 栏 ========== -->
@@ -169,6 +451,10 @@
         <span class="text-xl">🏠</span>
         <span class="text-xs">首页</span>
       </button>
+      <button class="tab-btn" data-page="teams">
+        <span class="text-xl">👥</span>
+        <span class="text-xs">小分队</span>
+      </button>
       <button class="tab-btn" data-page="aa">
         <span class="text-xl">💰</span>
         <span class="text-xs">记账</span>
@@ -176,6 +462,10 @@
       <button class="tab-btn" data-page="game">
         <span class="text-xl">🎲</span>
         <span class="text-xs">桌游</span>
+      </button>
+      <button class="tab-btn" data-page="profile">
+        <span class="text-xl">👤</span>
+        <span class="text-xs">我的</span>
       </button>
     </div>
   </div>

@@ -1,6 +1,92 @@
+// ========== 常量与配置 ==========
+const STORAGE_KEYS = {
+  USER: 'travel_user',
+  TEAMS: 'travel_teams',
+  THEME: 'theme',
+};
+
+const AVATARS = ['😀', '😎', '🤠', '🐱', '🐶', '🦊', '🐼', '🐨', '🦄', '🐲', '🌸', '🍉', '⚽', '🎸', '🎭', '🚀'];
+
+const AVATAR_COLORS = [
+  'bg-red-100 dark:bg-red-900/30',
+  'bg-orange-100 dark:bg-orange-900/30',
+  'bg-amber-100 dark:bg-amber-900/30',
+  'bg-green-100 dark:bg-green-900/30',
+  'bg-teal-100 dark:bg-teal-900/30',
+  'bg-blue-100 dark:bg-blue-900/30',
+  'bg-indigo-100 dark:bg-indigo-900/30',
+  'bg-purple-100 dark:bg-purple-900/30',
+  'bg-pink-100 dark:bg-pink-900/30',
+];
+
+// ========== 工具函数 ==========
+function generateId(prefix = '') {
+  return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function generateJoinCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return code;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return `${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
+function showToast(message, type = 'info') {
+  // 移除旧的 toast
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translate(-50%, -20px)';
+    setTimeout(() => toast.remove(), 300);
+  }, 2500);
+}
+
+// ========== 数据存取 ==========
+function getUser() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.USER));
+  } catch {
+    return null;
+  }
+}
+
+function setUser(user) {
+  localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+}
+
+function clearUser() {
+  localStorage.removeItem(STORAGE_KEYS.USER);
+}
+
+function getTeams() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.TEAMS)) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveTeams(teams) {
+  localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
+}
+
 // ========== 主题切换 ==========
 function initTheme() {
-  const saved = localStorage.getItem('theme');
+  const saved = localStorage.getItem(STORAGE_KEYS.THEME);
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const isDark = saved === 'dark' || (!saved && prefersDark);
   applyTheme(isDark);
@@ -10,7 +96,7 @@ function applyTheme(isDark) {
   document.documentElement.classList.toggle('dark', isDark);
   document.documentElement.classList.toggle('light', !isDark);
   document.getElementById('themeIcon').textContent = isDark ? '☀️' : '🌙';
-  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  localStorage.setItem(STORAGE_KEYS.THEME, isDark ? 'dark' : 'light');
 }
 
 function toggleTheme() {
@@ -20,37 +106,507 @@ function toggleTheme() {
 
 // ========== 页面导航 ==========
 function navigateTo(pageName) {
-  // 隐藏所有页面
   document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
-  // 显示目标页面
   const target = document.getElementById('page-' + pageName);
   if (target) target.classList.remove('hidden');
 
-  // 更新顶部导航高亮
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.page === pageName);
   });
-
-  // 更新移动端菜单高亮
   document.querySelectorAll('.mobile-nav-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.page === pageName);
   });
-
-  // 更新底部 Tab 高亮
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.page === pageName);
   });
 
-  // 关闭移动端菜单
   document.getElementById('mobileMenu').classList.add('hidden');
-
-  // 滚动到顶部
   window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // 页面进入时刷新数据
+  if (pageName === 'teams') renderTeamsPage();
+  if (pageName === 'profile') renderProfilePage();
 }
 
 // ========== 移动端菜单 ==========
 function toggleMobileMenu() {
   document.getElementById('mobileMenu').classList.toggle('hidden');
+}
+
+// ========== 头像选择器 ==========
+function renderAvatarPicker(containerId, selectedAvatar, onSelect) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  AVATARS.forEach(emoji => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'avatar-option' + (emoji === selectedAvatar ? ' selected' : '');
+    btn.textContent = emoji;
+    btn.addEventListener('click', () => {
+      container.querySelectorAll('.avatar-option').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      if (onSelect) onSelect(emoji);
+    });
+    container.appendChild(btn);
+  });
+}
+
+// ========== 用户状态更新 ==========
+function updateUIForUserState() {
+  const user = getUser();
+  const avatarBtn = document.getElementById('userAvatarBtn');
+
+  if (user) {
+    // 更新导航栏头像
+    avatarBtn.innerHTML = `<span class="text-xl">${user.avatar}</span>`;
+    avatarBtn.onclick = () => navigateTo('profile');
+  } else {
+    avatarBtn.innerHTML = '<span class="text-xl">👤</span>';
+    avatarBtn.onclick = () => showLoginModal();
+  }
+}
+
+// ========== 登录相关 ==========
+let loginSelectedAvatar = '😀';
+
+function showLoginModal() {
+  const modal = document.getElementById('loginModal');
+  modal.classList.remove('hidden');
+  loginSelectedAvatar = '😀';
+  renderAvatarPicker('avatarPicker', loginSelectedAvatar, (emoji) => {
+    loginSelectedAvatar = emoji;
+  });
+  document.getElementById('loginNickname').value = '';
+}
+
+function hideLoginModal() {
+  document.getElementById('loginModal').classList.add('hidden');
+}
+
+function handleWechatLogin() {
+  const nickname = document.getElementById('loginNickname').value.trim();
+  if (!nickname) {
+    showToast('请输入昵称', 'error');
+    return;
+  }
+
+  const user = {
+    id: generateId('wx_'),
+    nickname: nickname,
+    avatar: loginSelectedAvatar,
+    loginTime: Date.now(),
+  };
+
+  setUser(user);
+  hideLoginModal();
+  updateUIForUserState();
+  showToast('登录成功！', 'success');
+}
+
+function logout() {
+  clearUser();
+  updateUIForUserState();
+  navigateTo('home');
+  showToast('已退出登录', 'info');
+}
+
+// ========== 个人中心 ==========
+function renderProfilePage() {
+  const user = getUser();
+  const loginPrompt = document.getElementById('profileLoginPrompt');
+  const content = document.getElementById('profileContent');
+
+  if (!user) {
+    loginPrompt.classList.remove('hidden');
+    content.classList.add('hidden');
+    return;
+  }
+
+  loginPrompt.classList.add('hidden');
+  content.classList.remove('hidden');
+
+  document.getElementById('profileAvatar').textContent = user.avatar;
+  document.getElementById('profileNickname').textContent = user.nickname;
+}
+
+let editSelectedAvatar = '';
+
+function showEditProfileModal() {
+  const user = getUser();
+  if (!user) return;
+
+  const modal = document.getElementById('editProfileModal');
+  modal.classList.remove('hidden');
+
+  editSelectedAvatar = user.avatar;
+  document.getElementById('editNickname').value = user.nickname;
+
+  renderAvatarPicker('editAvatarPicker', editSelectedAvatar, (emoji) => {
+    editSelectedAvatar = emoji;
+  });
+}
+
+function closeEditProfileModal() {
+  document.getElementById('editProfileModal').classList.add('hidden');
+}
+
+function saveProfile() {
+  const user = getUser();
+  if (!user) return;
+
+  const nickname = document.getElementById('editNickname').value.trim();
+  if (!nickname) {
+    showToast('昵称不能为空', 'error');
+    return;
+  }
+
+  user.nickname = nickname;
+  user.avatar = editSelectedAvatar;
+  setUser(user);
+
+  closeEditProfileModal();
+  updateUIForUserState();
+  renderProfilePage();
+  showToast('资料已更新', 'success');
+}
+
+// ========== 小分队管理 ==========
+function renderTeamsPage() {
+  const user = getUser();
+  const loginPrompt = document.getElementById('teamsLoginPrompt');
+  const content = document.getElementById('teamsContent');
+
+  if (!user) {
+    loginPrompt.classList.remove('hidden');
+    content.classList.add('hidden');
+    return;
+  }
+
+  loginPrompt.classList.add('hidden');
+  content.classList.remove('hidden');
+
+  renderTeamsList();
+}
+
+function renderTeamsList() {
+  const user = getUser();
+  if (!user) return;
+
+  const teams = getTeams().filter(t =>
+    t.members.some(m => m.id === user.id)
+  );
+
+  const listEl = document.getElementById('teamsList');
+  const emptyEl = document.getElementById('emptyTeams');
+
+  if (teams.length === 0) {
+    listEl.innerHTML = '';
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+
+  emptyEl.classList.add('hidden');
+  listEl.innerHTML = teams.map(team => {
+    const isCreator = team.creatorId === user.id;
+    const memberAvatars = team.members.slice(0, 5).map(m =>
+      `<span class="member-avatar ${AVATAR_COLORS[m.id.charCodeAt(0) % AVATAR_COLORS.length]}" title="${m.nickname}">${m.avatar}</span>`
+    ).join('');
+    const extraCount = team.members.length > 5 ? `<span class="member-avatar bg-gray-100 dark:bg-gray-600 text-xs text-gray-500">+${team.members.length - 5}</span>` : '';
+
+    const dateStr = (team.startDate && team.endDate)
+      ? `${formatDate(team.startDate)} - ${formatDate(team.endDate)}`
+      : '';
+
+    return `
+      <div class="team-card mb-3" onclick="showTeamDetail('${team.id}')">
+        <div class="flex items-start justify-between mb-2">
+          <div class="flex-1 min-w-0">
+            <h3 class="font-bold text-base truncate">${escapeHtml(team.name)}</h3>
+            ${team.destination ? `<p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">📍 ${escapeHtml(team.destination)}</p>` : ''}
+          </div>
+          <div class="flex items-center gap-1.5 ml-3 shrink-0">
+            ${isCreator ? '<span class="text-xs px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium">队长</span>' : '<span class="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">队员</span>'}
+          </div>
+        </div>
+        ${dateStr ? `<p class="text-xs text-gray-400 dark:text-gray-500 mb-2">📅 ${dateStr}</p>` : ''}
+        <div class="flex items-center justify-between mt-3">
+          <div class="flex -space-x-2">${memberAvatars}${extraCount}</div>
+          <span class="text-xs text-gray-400 dark:text-gray-500">${team.members.length}人</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// 创建小分队
+function showCreateTeamModal() {
+  if (!getUser()) { showLoginModal(); return; }
+  document.getElementById('createTeamModal').classList.remove('hidden');
+  document.getElementById('teamName').value = '';
+  document.getElementById('teamDest').value = '';
+  document.getElementById('teamStartDate').value = '';
+  document.getElementById('teamEndDate').value = '';
+  document.getElementById('teamDesc').value = '';
+}
+
+function closeCreateTeamModal() {
+  document.getElementById('createTeamModal').classList.add('hidden');
+}
+
+function createTeam() {
+  const user = getUser();
+  if (!user) return;
+
+  const name = document.getElementById('teamName').value.trim();
+  if (!name) {
+    showToast('请输入小分队名称', 'error');
+    return;
+  }
+
+  const team = {
+    id: generateId('team_'),
+    name: name,
+    destination: document.getElementById('teamDest').value.trim(),
+    startDate: document.getElementById('teamStartDate').value,
+    endDate: document.getElementById('teamEndDate').value,
+    description: document.getElementById('teamDesc').value.trim(),
+    joinCode: generateJoinCode(),
+    creatorId: user.id,
+    members: [{
+      id: user.id,
+      nickname: user.nickname,
+      avatar: user.avatar,
+      joinedAt: Date.now(),
+    }],
+    createdAt: Date.now(),
+  };
+
+  const teams = getTeams();
+  teams.push(team);
+  saveTeams(teams);
+
+  closeCreateTeamModal();
+  renderTeamsList();
+  showToast('小分队创建成功！', 'success');
+}
+
+// 加入小分队
+function showJoinTeamModal() {
+  if (!getUser()) { showLoginModal(); return; }
+  document.getElementById('joinTeamModal').classList.remove('hidden');
+  document.getElementById('joinCode').value = '';
+}
+
+function closeJoinTeamModal() {
+  document.getElementById('joinTeamModal').classList.add('hidden');
+}
+
+function joinTeam() {
+  const user = getUser();
+  if (!user) return;
+
+  const code = document.getElementById('joinCode').value.trim().toUpperCase();
+  if (code.length !== 6) {
+    showToast('请输入6位邀请码', 'error');
+    return;
+  }
+
+  const teams = getTeams();
+  const team = teams.find(t => t.joinCode === code);
+
+  if (!team) {
+    showToast('邀请码无效，请检查后重试', 'error');
+    return;
+  }
+
+  if (team.members.some(m => m.id === user.id)) {
+    showToast('你已经在这个小分队中了', 'error');
+    return;
+  }
+
+  team.members.push({
+    id: user.id,
+    nickname: user.nickname,
+    avatar: user.avatar,
+    joinedAt: Date.now(),
+  });
+
+  saveTeams(teams);
+  closeJoinTeamModal();
+  renderTeamsList();
+  showToast(`成功加入「${team.name}」！`, 'success');
+}
+
+// 小分队详情
+let currentTeamId = null;
+
+function showTeamDetail(teamId) {
+  const teams = getTeams();
+  const team = teams.find(t => t.id === teamId);
+  if (!team) return;
+
+  currentTeamId = teamId;
+
+  document.getElementById('teamDetailTitle').textContent = team.name;
+
+  const user = getUser();
+  const isCreator = user && team.creatorId === user.id;
+
+  const dateStr = (team.startDate && team.endDate)
+    ? `${team.startDate} ~ ${team.endDate}`
+    : '未设置';
+
+  document.getElementById('teamDetailContent').innerHTML = `
+    <!-- 基本信息 -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 mb-4">
+      ${team.destination ? `
+        <div class="flex items-center gap-2 mb-3">
+          <span>📍</span>
+          <span class="text-gray-700 dark:text-gray-300">${escapeHtml(team.destination)}</span>
+        </div>
+      ` : ''}
+      <div class="flex items-center gap-2 mb-3">
+        <span>📅</span>
+        <span class="text-gray-700 dark:text-gray-300">${dateStr}</span>
+      </div>
+      ${team.description ? `
+        <div class="flex items-start gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+          <span>📝</span>
+          <p class="text-gray-600 dark:text-gray-400 text-sm">${escapeHtml(team.description)}</p>
+        </div>
+      ` : ''}
+    </div>
+
+    <!-- 邀请码 -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 mb-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-gray-500 dark:text-gray-400">邀请码</p>
+          <p class="text-2xl font-bold tracking-[0.3em] mt-1 font-mono">${team.joinCode}</p>
+        </div>
+        <button onclick="copyJoinCode('${team.joinCode}')" class="px-4 py-2 rounded-lg bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 text-sm font-medium hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors">
+          复制邀请码
+        </button>
+      </div>
+      <p class="text-xs text-gray-400 dark:text-gray-500 mt-2">分享邀请码给小伙伴，即可加入小分队</p>
+    </div>
+
+    <!-- 成员列表 -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 mb-4">
+      <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-700">
+        <h3 class="font-semibold text-gray-700 dark:text-gray-300">成员 (${team.members.length})</h3>
+      </div>
+      <div class="divide-y divide-gray-100 dark:divide-gray-700">
+        ${team.members.map((m, i) => {
+          const isTeamCreator = m.id === team.creatorId;
+          return `
+            <div class="flex items-center gap-3 px-5 py-3">
+              <span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[m.id.charCodeAt(0) % AVATAR_COLORS.length]}">
+                ${m.avatar}
+              </span>
+              <div class="flex-1 min-w-0">
+                <p class="font-medium truncate">${escapeHtml(m.nickname)}${m.id === (user && user.id) ? ' <span class="text-xs text-gray-400">(我)</span>' : ''}</p>
+                <p class="text-xs text-gray-400 dark:text-gray-500">${isTeamCreator ? '队长' : '队员'} · ${new Date(m.joinedAt).toLocaleDateString()}</p>
+              </div>
+              ${isCreator && !isTeamCreator ? `
+                <button onclick="removeMember('${team.id}', '${m.id}')" class="text-xs text-red-400 hover:text-red-600 transition-colors px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20" title="移除成员">
+                  移除
+                </button>
+              ` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- 操作区 -->
+    <div class="space-y-3">
+      ${isCreator ? `
+        <button onclick="disbandTeam('${team.id}')" class="w-full py-3 rounded-xl border border-red-300 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors">
+          解散小分队
+        </button>
+      ` : `
+        <button onclick="leaveTeam('${team.id}')" class="w-full py-3 rounded-xl border border-red-300 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors">
+          退出小分队
+        </button>
+      `}
+    </div>
+  `;
+
+  navigateTo('team-detail');
+  // 手动修正 tab 高亮（team-detail 不在 tab 中）
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+}
+
+function copyJoinCode(code) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(code).then(() => {
+      showToast('邀请码已复制', 'success');
+    });
+  } else {
+    // fallback
+    const input = document.createElement('input');
+    input.value = code;
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand('copy');
+    document.body.removeChild(input);
+    showToast('邀请码已复制', 'success');
+  }
+}
+
+function removeMember(teamId, memberId) {
+  const teams = getTeams();
+  const team = teams.find(t => t.id === teamId);
+  if (!team) return;
+
+  const user = getUser();
+  if (!user || team.creatorId !== user.id) return;
+
+  const member = team.members.find(m => m.id === memberId);
+  if (!member) return;
+
+  if (!confirm(`确定要移除「${member.nickname}」吗？`)) return;
+
+  team.members = team.members.filter(m => m.id !== memberId);
+  saveTeams(teams);
+  showTeamDetail(teamId);
+  showToast('已移除成员', 'info');
+}
+
+function leaveTeam(teamId) {
+  const user = getUser();
+  if (!user) return;
+
+  if (!confirm('确定要退出这个小分队吗？')) return;
+
+  const teams = getTeams();
+  const team = teams.find(t => t.id === teamId);
+  if (!team) return;
+
+  team.members = team.members.filter(m => m.id !== user.id);
+  saveTeams(teams);
+  navigateTo('teams');
+  showToast('已退出小分队', 'info');
+}
+
+function disbandTeam(teamId) {
+  const user = getUser();
+  if (!user) return;
+
+  if (!confirm('确定要解散这个小分队吗？此操作不可撤销！')) return;
+
+  let teams = getTeams();
+  teams = teams.filter(t => t.id !== teamId);
+  saveTeams(teams);
+  navigateTo('teams');
+  showToast('小分队已解散', 'info');
 }
 
 // ========== 事件绑定 ==========
@@ -63,8 +619,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // 移动端菜单按钮
   document.getElementById('menuToggle').addEventListener('click', toggleMobileMenu);
 
-  // 所有带 data-page 的导航按钮（统一处理）
+  // 所有带 data-page 的导航按钮
   document.querySelectorAll('[data-page]').forEach(btn => {
     btn.addEventListener('click', () => navigateTo(btn.dataset.page));
   });
+
+  // 用户头像按钮
+  updateUIForUserState();
+
+  // 微信登录按钮
+  document.getElementById('wechatLoginBtn').addEventListener('click', handleWechatLogin);
+
+  // 登录模态框点击背景关闭
+  document.querySelector('#loginModal .modal-backdrop').addEventListener('click', hideLoginModal);
 });
