@@ -1,0 +1,49 @@
+/* ========== 导航按钮 ========== */
+.nav-btn {
+  @apply px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300
+         hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors;
+}
+.nav-btn.active {
+  @apply bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400;
+}
+
+/* 移动端导航按钮 */
+.mobile-nav-btn {
+  @apply w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium
+         text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors;
+}
+.mobile-nav-btn.active {
+  @apply bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400;
+}
+
+/* ========== 功能卡片 ========== */
+.feature-card {
+  @apply w-full p-5 rounded-xl bg-white dark:bg-gray-800
+         border border-gray-200 dark:border-gray-700
+         hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-600
+         hover:-translate-y-0.5 active:scale-[0.98]
+         transition-all duration-200;
+}
+
+/* ========== 占位卡片 ========== */
+.placeholder-card {
+  @apply flex flex-col items-center justify-center py-20 rounded-xl
+         bg-white dark:bg-gray-800 border-2 border-dashed
+         border-gray-200 dark:border-gray-700;
+}
+
+/* ========== 返回按钮 ========== */
+.back-btn {
+  @apply w-9 h-9 flex items-center justify-center rounded-full
+         bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600
+         transition-colors text-lg;
+}
+
+/* ========== 底部 Tab 按钮 ========== */
+.tab-btn {
+  @apply flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg
+         text-gray-400 dark:text-gray-500 transition-colors;
+}
+.tab-btn.active {
+  @apply text-blue-600 dark:text-blue-400;
+}

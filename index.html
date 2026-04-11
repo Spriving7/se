@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>旅游小助手</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50:  '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              300: '#93c5fd',
+              400: '#60a5fa',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-300">
+
+  <!-- ========== 顶部导航栏 ========== -->
+  <nav class="sticky top-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
+    <div class="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      <!-- Logo -->
+      <div class="flex items-center gap-2">
+        <span class="text-2xl">✈️</span>
+        <span class="text-lg font-bold bg-gradient-to-r from-blue-500 to-cyan-400 bg-clip-text text-transparent">
+          旅游小助手
+        </span>
+      </div>
+
+      <!-- 桌面端导航 -->
+      <div class="hidden md:flex items-center gap-1">
+        <button class="nav-btn active" data-page="home">首页</button>
+        <button class="nav-btn" data-page="aa">AA 记账</button>
+        <button class="nav-btn" data-page="game">在线桌游</button>
+      </div>
+
+      <!-- 右侧操作 -->
+      <div class="flex items-center gap-2">
+        <!-- 主题切换 -->
+        <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="切换主题">
+          <span id="themeIcon" class="text-xl">🌙</span>
+        </button>
+        <!-- 移动端菜单按钮 -->
+        <button id="menuToggle" class="md:hidden p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+          <span class="text-xl">☰</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 移动端下拉菜单 -->
+    <div id="mobileMenu" class="hidden md:hidden border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+      <div class="px-4 py-2 space-y-1">
+        <button class="mobile-nav-btn active" data-page="home">🏠 首页</button>
+        <button class="mobile-nav-btn" data-page="aa">💰 AA 记账</button>
+        <button class="mobile-nav-btn" data-page="game">🎲 在线桌游</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ========== 页面内容区 ========== -->
+  <main class="max-w-5xl mx-auto px-4 py-6">
+
+    <!-- 首页 -->
+    <section id="page-home" class="page">
+      <!-- 欢迎横幅 -->
+      <div class="rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 p-6 md:p-8 text-white mb-8">
+        <h1 class="text-2xl md:text-3xl font-bold mb-2">旅途好帮手 ✈️</h1>
+        <p class="text-blue-100 text-sm md:text-base">记账、桌游，一个应用全搞定</p>
+      </div>
+
+      <!-- 功能卡片 -->
+      <h2 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">功能一览</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+
+        <button class="feature-card" data-page="aa">
+          <div class="flex items-start gap-4">
+            <span class="text-4xl">💰</span>
+            <div class="text-left">
+              <h3 class="font-bold text-lg">AA 分摊计算器</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                记录旅行开销，自动计算最优还款方案，谁也不用多付一分钱
+              </p>
+            </div>
+          </div>
+        </button>
+
+        <button class="feature-card" data-page="game">
+          <div class="flex items-start gap-4">
+            <span class="text-4xl">🎲</span>
+            <div class="text-left">
+              <h3 class="font-bold text-lg">在线桌游</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                旅途无聊？来一局谁是卧底、你画我猜，手机就是游戏机
+              </p>
+            </div>
+          </div>
+        </button>
+
+        <button class="feature-card opacity-50 cursor-not-allowed" disabled>
+          <div class="flex items-start gap-4">
+            <span class="text-4xl">🗺️</span>
+            <div class="text-left">
+              <h3 class="font-bold text-lg">行程规划</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">即将上线…</p>
+            </div>
+          </div>
+        </button>
+
+        <button class="feature-card opacity-50 cursor-not-allowed" disabled>
+          <div class="flex items-start gap-4">
+            <span class="text-4xl">📸</span>
+            <div class="text-left">
+              <h3 class="font-bold text-lg">旅行相册</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">即将上线…</p>
+            </div>
+          </div>
+        </button>
+
+      </div>
+    </section>
+
+    <!-- AA 分摊计算器（占位） -->
+    <section id="page-aa" class="page hidden">
+      <div class="flex items-center gap-3 mb-6">
+        <button class="back-btn md:hidden" data-page="home">←</button>
+        <h1 class="text-2xl font-bold">💰 AA 分摊计算器</h1>
+      </div>
+      <div class="placeholder-card">
+        <p class="text-gray-400 dark:text-gray-500 text-lg">功能开发中…</p>
+        <p class="text-gray-400 dark:text-gray-500 text-sm mt-2">将支持：添加成员、记录消费、最优还款方案计算</p>
+      </div>
+    </section>
+
+    <!-- 在线桌游（占位） -->
+    <section id="page-game" class="page hidden">
+      <div class="flex items-center gap-3 mb-6">
+        <button class="back-btn md:hidden" data-page="home">←</button>
+        <h1 class="text-2xl font-bold">🎲 在线桌游</h1>
+      </div>
+      <div class="placeholder-card">
+        <p class="text-gray-400 dark:text-gray-500 text-lg">功能开发中…</p>
+        <p class="text-gray-400 dark:text-gray-500 text-sm mt-2">将支持：谁是卧底、你画我猜等旅途桌游</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========== 移动端底部 Tab 栏 ========== -->
+  <div class="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border-t border-gray-200 dark:border-gray-700">
+    <div class="flex justify-around py-2">
+      <button class="tab-btn active" data-page="home">
+        <span class="text-xl">🏠</span>
+        <span class="text-xs">首页</span>
+      </button>
+      <button class="tab-btn" data-page="aa">
+        <span class="text-xl">💰</span>
+        <span class="text-xs">记账</span>
+      </button>
+      <button class="tab-btn" data-page="game">
+        <span class="text-xl">🎲</span>
+        <span class="text-xs">桌游</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 底部安全间距（为移动端 tab 栏留空） -->
+  <div class="h-16 md:h-0"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
