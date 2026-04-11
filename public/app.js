@@ -21,6 +21,14 @@ const AVATAR_COLORS = [
 // 缓存的小分队列表（从服务器获取）
 let cachedTeams = [];
 
+// ========== AA 记账状态 ==========
+const CATEGORY_ICONS = { food: '🍔', transport: '🚕', accommodation: '🏨', tickets: '🎫', shopping: '🛍️', other: '💵' };
+let aaSelectedTeamId = null;
+let aaCachedData = null;
+let aaCurrentTab = 'expenses';
+let editingExpenseId = null;
+let pendingSettle = null;
+
 // ========== 工具函数 ==========
 function formatDate(dateStr) {
   if (!dateStr) return '';
@@ -121,6 +129,7 @@ function navigateTo(pageName) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   if (pageName === 'teams') renderTeamsPage();
+  if (pageName === 'aa') renderAAPage();
   if (pageName === 'profile') renderProfilePage();
 }
 
@@ -203,7 +212,17 @@ async function handleLogin() {
       showToast(data.error || '登录失败', 'error');
     }
   } catch {
-    showToast('网络错误，请检查连接', 'error');
+    // 后端不可用时，离线模式登录
+    const user = {
+      id: 'u_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      nickname,
+      avatar: loginSelectedAvatar,
+      loginTime: Date.now(),
+    };
+    setUser(user);
+    hideLoginModal();
+    updateUIForUserState();
+    showToast('登录成功！（离线模式）', 'success');
   }
 }
 
@@ -628,6 +647,460 @@ async function disbandTeam(teamId) {
     if (res.ok) {
       navigateTo('teams');
       showToast('小分队已解散', 'info');
+    } else {
+      const data = await res.json();
+      showToast(data.error || '操作失败', 'error');
+    }
+  } catch {
+    showToast('网络错误', 'error');
+  }
+}
+
+// ========== AA 记账 ==========
+
+function renderAAPage() {
+  const user = getUser();
+  const loginPrompt = document.getElementById('aaLoginPrompt');
+  const content = document.getElementById('aaContent');
+
+  if (!user) {
+    loginPrompt.classList.remove('hidden');
+    content.classList.add('hidden');
+    return;
+  }
+
+  loginPrompt.classList.add('hidden');
+  content.classList.remove('hidden');
+
+  populateAATeamSelect();
+}
+
+async function populateAATeamSelect() {
+  const select = document.getElementById('aaTeamSelect');
+  const user = getUser();
+  if (!user) return;
+
+  try {
+    const res = await fetch('/teams');
+    if (res.ok) {
+      cachedTeams = await res.json();
+    }
+  } catch { /* use cached */ }
+
+  const current = select.value;
+  select.innerHTML = '<option value="">-- 选择小分队 --</option>';
+  cachedTeams.forEach(team => {
+    const opt = document.createElement('option');
+    opt.value = team.id;
+    opt.textContent = team.name;
+    select.appendChild(opt);
+  });
+
+  if (aaSelectedTeamId && cachedTeams.some(t => t.id === aaSelectedTeamId)) {
+    select.value = aaSelectedTeamId;
+    await loadAAData();
+  }
+}
+
+function onAATeamChange() {
+  aaSelectedTeamId = document.getElementById('aaTeamSelect').value || null;
+  if (aaSelectedTeamId) {
+    loadAAData();
+  } else {
+    aaCachedData = null;
+    document.getElementById('aaSummary').classList.add('hidden');
+    document.getElementById('aaTabs').classList.add('hidden');
+    document.getElementById('aaExpenseList').innerHTML = '';
+    document.getElementById('aaEmptyExpenses').classList.add('hidden');
+    document.getElementById('aaSettlementList').classList.add('hidden');
+    document.getElementById('aaAddBtn').classList.add('hidden');
+  }
+}
+
+async function loadAAData() {
+  if (!aaSelectedTeamId) return;
+
+  try {
+    const [dataRes, settleRes] = await Promise.all([
+      fetch(`/expenses/${aaSelectedTeamId}`),
+      fetch(`/expenses/${aaSelectedTeamId}/settlement`),
+    ]);
+    if (!dataRes.ok || !settleRes.ok) {
+      showToast('加载数据失败', 'error');
+      return;
+    }
+    const data = await dataRes.json();
+    const settleData = await settleRes.json();
+    aaCachedData = { ...data, settlement: settleData };
+  } catch {
+    showToast('网络错误', 'error');
+    return;
+  }
+
+  renderAASummary();
+  renderAAExpenseList();
+  renderAASettlement();
+  document.getElementById('aaSummary').classList.remove('hidden');
+  document.getElementById('aaTabs').classList.remove('hidden');
+  document.getElementById('aaAddBtn').classList.remove('hidden');
+}
+
+function renderAASummary() {
+  if (!aaCachedData) return;
+  const { settlement, members } = aaCachedData;
+  const user = getUser();
+
+  document.getElementById('aaTotalExpense').textContent = '¥' + (settlement.totalExpenses || 0).toFixed(2);
+
+  const myBal = settlement.balances[user.id] || 0;
+  const balEl = document.getElementById('aaMyBalance');
+  balEl.textContent = (myBal >= 0 ? '+' : '') + '¥' + myBal.toFixed(2);
+  balEl.className = 'text-xl font-bold ' + (myBal > 0.005 ? 'text-green-600 dark:text-green-400' : myBal < -0.005 ? 'text-red-500' : 'text-gray-500');
+}
+
+function switchAATab(tab) {
+  aaCurrentTab = tab;
+  document.querySelectorAll('.aa-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.aatab === tab);
+  });
+
+  if (tab === 'expenses') {
+    renderAAExpenseList();
+    document.getElementById('aaSettlementList').classList.add('hidden');
+    document.getElementById('aaAddBtn').classList.remove('hidden');
+  } else {
+    document.getElementById('aaExpenseList').innerHTML = '';
+    document.getElementById('aaEmptyExpenses').classList.add('hidden');
+    document.getElementById('aaAddBtn').classList.add('hidden');
+    renderAASettlement();
+  }
+}
+
+function renderAAExpenseList() {
+  if (!aaCachedData) return;
+  const { expenses, members } = aaCachedData;
+  const user = getUser();
+  const listEl = document.getElementById('aaExpenseList');
+  const emptyEl = document.getElementById('aaEmptyExpenses');
+
+  if (expenses.length === 0) {
+    listEl.innerHTML = '';
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+
+  emptyEl.classList.add('hidden');
+
+  const memberMap = {};
+  members.forEach(m => { memberMap[m.id] = m; });
+
+  listEl.innerHTML = expenses.sort((a, b) => b.createdAt - a.createdAt).map(exp => {
+    const payer = memberMap[exp.payerId];
+    const icon = CATEGORY_ICONS[exp.category] || '💵';
+    const splitNames = exp.splitAmong.map(uid => {
+      const m = memberMap[uid];
+      return m ? escapeHtml(m.nickname) : uid;
+    }).join('、');
+
+    return `
+      <div class="expense-card mb-3 cursor-pointer" onclick="showExpenseModal('${exp.id}')">
+        <div class="flex items-start gap-3">
+          <div class="expense-category-icon shrink-0">${icon}</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <h4 class="font-medium truncate">${escapeHtml(exp.description)}</h4>
+              <span class="text-base font-bold text-primary-600 dark:text-primary-400 shrink-0 ml-2">¥${exp.amount.toFixed(2)}</span>
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              ${payer ? payer.avatar + ' ' + escapeHtml(payer.nickname) : '未知'} 付款 · 均摊 ${exp.splitAmong.length} 人
+            </p>
+            <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">每人 ¥${(exp.splits[exp.splitAmong[0]] || 0).toFixed(2)}</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderAASettlement() {
+  if (!aaCachedData) return;
+  const { settlement, members } = aaCachedData;
+  const listEl = document.getElementById('aaSettlementList');
+
+  const memberMap = {};
+  members.forEach(m => { memberMap[m.id] = m; });
+
+  const settledMap = new Map();
+  (settlement.settledTransfers || []).forEach(s => {
+    const key = s.from + '->' + s.to;
+    settledMap.set(key, (settledMap.get(key) || 0) + s.amount);
+  });
+
+  const allTransfers = [
+    ...settlement.transfers.map(t => ({ ...t, settled: false })),
+    ...(settlement.settledTransfers || []).map(t => ({
+      from: t.from, to: t.to, amount: t.amount, settled: true, id: t.id, settledAt: t.settledAt,
+    })),
+  ];
+
+  if (allTransfers.length === 0) {
+    listEl.innerHTML = `
+      <div class="placeholder-card">
+        <span class="text-5xl mb-4">🎉</span>
+        <p class="text-gray-400 dark:text-gray-500 text-lg">无需结算</p>
+        <p class="text-gray-400 dark:text-gray-500 text-sm mt-1">所有人的账目都已两清</p>
+      </div>
+    `;
+    listEl.classList.remove('hidden');
+    return;
+  }
+
+  listEl.innerHTML = allTransfers.map(t => {
+    const from = memberMap[t.from];
+    const to = memberMap[t.to];
+    return `
+      <div class="settle-card mb-3 ${t.settled ? 'done' : ''}">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">${from ? from.avatar : '?'}</span>
+            <span class="text-sm font-medium">${from ? escapeHtml(from.nickname) : '?'}</span>
+            <span class="text-gray-400 text-xs">→</span>
+            <span class="text-lg">${to ? to.avatar : '?'}</span>
+            <span class="text-sm font-medium">${to ? escapeHtml(to.nickname) : '?'}</span>
+          </div>
+          <span class="font-bold text-red-500">¥${t.amount.toFixed(2)}</span>
+        </div>
+        <div class="flex items-center justify-between mt-2">
+          ${t.settled
+            ? `<span class="text-xs text-green-500">✓ 已还 ${new Date(t.settledAt).toLocaleDateString()}</span>
+               <button onclick="undoSettlement('${t.id}')" class="text-xs text-gray-400 hover:text-red-400 transition-colors">撤销</button>`
+            : `<span class="text-xs text-gray-400 dark:text-gray-500">待还款</span>
+               <button onclick="showSettleConfirm('${t.from}','${t.to}',${t.amount})" class="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium">标记已还</button>`
+          }
+        </div>
+      </div>
+    `;
+  }).join('');
+  listEl.classList.remove('hidden');
+}
+
+// ========== 费用模态框 ==========
+
+function showExpenseModal(expenseId) {
+  if (!aaSelectedTeamId) {
+    showToast('请先选择小分队', 'error');
+    return;
+  }
+  if (!aaCachedData) return;
+
+  editingExpenseId = expenseId || null;
+  const modal = document.getElementById('expenseModal');
+  const title = document.getElementById('expenseModalTitle');
+  const deleteBtn = document.getElementById('expenseDeleteBtn');
+
+  const members = aaCachedData.members;
+
+  // 填充付款人下拉
+  const payerSelect = document.getElementById('expensePayer');
+  payerSelect.innerHTML = members.map(m =>
+    `<option value="${m.id}">${m.avatar} ${escapeHtml(m.nickname)}</option>`
+  ).join('');
+
+  // 填充分摊人 checkbox
+  const splitDiv = document.getElementById('expenseSplitAmong');
+  splitDiv.innerHTML = members.map(m =>
+    `<label class="member-check" data-uid="${m.id}" onclick="toggleSplitMember(this)">
+       <input type="checkbox" class="hidden" checked>
+       <span class="text-lg">${m.avatar}</span>
+       <span class="text-sm">${escapeHtml(m.nickname)}</span>
+     </label>`
+  ).join('');
+  splitDiv.querySelectorAll('.member-check').forEach(el => el.classList.add('checked'));
+
+  if (expenseId) {
+    title.textContent = '编辑费用';
+    deleteBtn.classList.remove('hidden');
+    const exp = aaCachedData.expenses.find(e => e.id === expenseId);
+    if (exp) {
+      document.getElementById('expenseDesc').value = exp.description;
+      document.getElementById('expenseAmount').value = exp.amount;
+      document.getElementById('expenseCategory').value = exp.category;
+      payerSelect.value = exp.payerId;
+      // 设置分摊人选中状态
+      splitDiv.querySelectorAll('.member-check').forEach(el => {
+        const uid = el.dataset.uid;
+        const checked = exp.splitAmong.includes(uid);
+        el.querySelector('input').checked = checked;
+        el.classList.toggle('checked', checked);
+      });
+    }
+  } else {
+    title.textContent = '添加费用';
+    deleteBtn.classList.add('hidden');
+    document.getElementById('expenseDesc').value = '';
+    document.getElementById('expenseAmount').value = '';
+    document.getElementById('expenseCategory').value = 'food';
+    // 默认付款人设为当前用户
+    const user = getUser();
+    if (payerSelect.querySelector(`option[value="${user.id}"]`)) {
+      payerSelect.value = user.id;
+    }
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeExpenseModal() {
+  document.getElementById('expenseModal').classList.add('hidden');
+  editingExpenseId = null;
+}
+
+function toggleSplitMember(el) {
+  const cb = el.querySelector('input');
+  cb.checked = !cb.checked;
+  el.classList.toggle('checked', cb.checked);
+}
+
+function selectAllSplitMembers() {
+  document.querySelectorAll('#expenseSplitAmong .member-check').forEach(el => {
+    el.querySelector('input').checked = true;
+    el.classList.add('checked');
+  });
+}
+
+function deselectAllSplitMembers() {
+  document.querySelectorAll('#expenseSplitAmong .member-check').forEach(el => {
+    el.querySelector('input').checked = false;
+    el.classList.remove('checked');
+  });
+}
+
+async function saveExpense() {
+  const desc = document.getElementById('expenseDesc').value.trim();
+  const amount = parseFloat(document.getElementById('expenseAmount').value);
+  const category = document.getElementById('expenseCategory').value;
+  const payerId = document.getElementById('expensePayer').value;
+  const splitAmong = [];
+  document.querySelectorAll('#expenseSplitAmong .member-check input:checked').forEach(cb => {
+    splitAmong.push(cb.closest('.member-check').dataset.uid);
+  });
+
+  if (!desc) { showToast('请输入费用描述', 'error'); return; }
+  if (!amount || amount <= 0) { showToast('请输入有效金额', 'error'); return; }
+  if (splitAmong.length === 0) { showToast('请选择至少一个分摊人', 'error'); return; }
+
+  const body = { description: desc, amount, category, payerId, splitAmong };
+
+  try {
+    let res;
+    if (editingExpenseId) {
+      res = await fetch(`/expenses/${aaSelectedTeamId}/${editingExpenseId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } else {
+      res = await fetch(`/expenses/${aaSelectedTeamId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    }
+
+    if (res.ok) {
+      closeExpenseModal();
+      await loadAAData();
+      showToast(editingExpenseId ? '费用已更新' : '费用已添加', 'success');
+    } else {
+      const data = await res.json();
+      showToast(data.error || '操作失败', 'error');
+    }
+  } catch {
+    showToast('网络错误', 'error');
+  }
+}
+
+async function deleteExpense() {
+  if (!editingExpenseId || !confirm('确定要删除这笔费用吗？')) return;
+
+  try {
+    const res = await fetch(`/expenses/${aaSelectedTeamId}/${editingExpenseId}`, { method: 'DELETE' });
+    if (res.ok) {
+      closeExpenseModal();
+      await loadAAData();
+      showToast('费用已删除', 'info');
+    } else {
+      const data = await res.json();
+      showToast(data.error || '删除失败', 'error');
+    }
+  } catch {
+    showToast('网络错误', 'error');
+  }
+}
+
+// ========== 结算操作 ==========
+
+function showSettleConfirm(fromUid, toUid, amount) {
+  pendingSettle = { fromUid, toUid, amount };
+  const members = aaCachedData.members;
+  const memberMap = {};
+  members.forEach(m => { memberMap[m.id] = m; });
+  const from = memberMap[fromUid];
+  const to = memberMap[toUid];
+
+  document.getElementById('settleConfirmBody').innerHTML = `
+    <div class="flex items-center justify-center gap-3 mb-3">
+      <span class="text-3xl">${from ? from.avatar : '?'}</span>
+      <span class="text-gray-400 text-xl">→</span>
+      <span class="text-3xl">${to ? to.avatar : '?'}</span>
+    </div>
+    <p class="text-lg font-bold">¥${amount.toFixed(2)}</p>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+      ${from ? escapeHtml(from.nickname) : '?'} → ${to ? escapeHtml(to.nickname) : '?'}
+    </p>
+  `;
+  document.getElementById('settleConfirmModal').classList.remove('hidden');
+}
+
+function closeSettleConfirmModal() {
+  document.getElementById('settleConfirmModal').classList.add('hidden');
+  pendingSettle = null;
+}
+
+async function confirmSettle() {
+  if (!pendingSettle) return;
+
+  try {
+    const res = await fetch(`/expenses/${aaSelectedTeamId}/settle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fromUserId: pendingSettle.fromUid,
+        toUserId: pendingSettle.toUid,
+        amount: pendingSettle.amount,
+      }),
+    });
+    if (res.ok) {
+      closeSettleConfirmModal();
+      await loadAAData();
+      showToast('已标记还款', 'success');
+    } else {
+      const data = await res.json();
+      showToast(data.error || '操作失败', 'error');
+    }
+  } catch {
+    showToast('网络错误', 'error');
+  }
+}
+
+async function undoSettlement(settlementId) {
+  if (!confirm('确定要撤销这笔还款记录吗？')) return;
+
+  try {
+    const res = await fetch(`/expenses/${aaSelectedTeamId}/settle/${settlementId}`, { method: 'DELETE' });
+    if (res.ok) {
+      await loadAAData();
+      showToast('已撤销还款记录', 'info');
     } else {
       const data = await res.json();
       showToast(data.error || '操作失败', 'error');
