@@ -361,6 +361,16 @@ function getGameView(gameId, playerId) {
   return view;
 }
 
+function dissolveGame(gameId, playerId) {
+  const game = getGameById(gameId);
+  if (!game) return null;
+  if (game.hostId !== playerId) return null;
+  game.phase = 'ended';
+  game.dissolved = true;
+  saveGame(game);
+  return game;
+}
+
 module.exports = {
   getGameById,
   getTeamGames,
@@ -374,4 +384,5 @@ module.exports = {
   endGuessing,
   leaveGame,
   getGameView,
+  dissolveGame,
 };

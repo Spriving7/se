@@ -3,7 +3,7 @@ const { requireAuth } = require('../middleware/session');
 const { findTeamById, getUserTeams } = require('../data/teams');
 const {
   getTeamGames, getGameView, createGame, joinGame, joinTeam, setSpymaster,
-  startGame, giveClue, guessCard, endGuessing, leaveGame,
+  startGame, giveClue, guessCard, endGuessing, leaveGame, dissolveGame,
 } = require('../data/codenames');
 
 const router = express.Router();
@@ -120,6 +120,13 @@ router.post('/:id/end-turn', (req, res) => {
 // POST /codenames/:id/leave — 离开
 router.post('/:id/leave', (req, res) => {
   leaveGame(req.params.id, req.user.id);
+  res.json({ ok: true });
+});
+
+// POST /codenames/:id/dissolve — 解散房间
+router.post('/:id/dissolve', (req, res) => {
+  const game = dissolveGame(req.params.id, req.user.id);
+  if (!game) return res.status(400).json({ error: '无法解散（仅房主可操作）' });
   res.json({ ok: true });
 });
 

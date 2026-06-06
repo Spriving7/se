@@ -343,8 +343,60 @@
 
 /* ========== 璀璨宝石 ========== */
 .spl-card {
-  @apply w-28 shrink-0 rounded-lg p-2 border-2 bg-white dark:bg-gray-800
+  @apply shrink-0 rounded-lg border-2 bg-white dark:bg-gray-800
          hover:shadow-sm transition-all;
+  width: 7.5rem;
+  padding: 0;
+  overflow: hidden;
+}
+.spl-card-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.375rem 0.5rem;
+}
+.spl-card-points {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 9999px;
+  background: white;
+  color: #1f2937;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+.spl-card-reward {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 9999px;
+  border: 2px solid rgba(255,255,255,0.6);
+}
+.spl-card-body {
+  padding: 0.375rem 0.5rem 0.5rem;
+}
+.spl-cost-gem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  margin-right: 0.25rem;
+  margin-bottom: 0.125rem;
+}
+.spl-cost-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
 }
 .spl-noble {
   @apply rounded-lg p-2 border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 min-w-[5rem];

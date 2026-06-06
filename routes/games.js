@@ -4,6 +4,7 @@ const { findTeamById, getUserTeams } = require('../data/teams');
 const {
   getTeamGames, getGameById, createGame, joinGame, leaveGame,
   startGame, submitDescription, submitVote, nextRound, getGameView,
+  dissolveGame,
 } = require('../data/games');
 
 const router = express.Router();
@@ -93,6 +94,13 @@ router.post('/:id/next-round', (req, res) => {
   const game = nextRound(req.params.id);
   if (!game) return res.status(400).json({ error: '无法进入下一轮' });
   res.json(getGameView(game.id, req.user.id));
+});
+
+// POST /games/:id/dissolve — 解散房间
+router.post('/:id/dissolve', (req, res) => {
+  const game = dissolveGame(req.params.id, req.user.id);
+  if (!game) return res.status(400).json({ error: '无法解散（仅房主可操作）' });
+  res.json({ ok: true });
 });
 
 module.exports = router;

@@ -2,6 +2,7 @@
 const STORAGE_KEYS = {
   USER: 'travel_user',
   THEME: 'theme',
+  ACTIVE_TEAM: 'active_team_id',
 };
 
 const AVATARS = ['😀', '😎', '🤠', '🐱', '🐶', '🦊', '🐼', '🐨', '🦄', '🐲', '🌸', '🍉', '⚽', '🎸', '🎭', '🚀'];
@@ -72,6 +73,17 @@ function setUser(user) {
 
 function clearUser() {
   localStorage.removeItem(STORAGE_KEYS.USER);
+}
+
+function getActiveTeamId() {
+  const id = localStorage.getItem(STORAGE_KEYS.ACTIVE_TEAM);
+  if (!id) return null;
+  if (!cachedTeams.some(t => t.id === id)) return null;
+  return id;
+}
+
+function setActiveTeamId(teamId) {
+  localStorage.setItem(STORAGE_KEYS.ACTIVE_TEAM, teamId);
 }
 
 // ========== 主题切换 ==========
@@ -490,6 +502,7 @@ async function showTeamDetail(teamId) {
   }
 
   currentTeamId = teamId;
+  setActiveTeamId(teamId);
   document.getElementById('teamDetailTitle').textContent = team.name;
 
   const isCreator = user && team.creatorId === user.id;
@@ -733,14 +746,22 @@ async function populateAATeamSelect() {
     select.appendChild(opt);
   });
 
+  // Auto-select active team if no explicit selection
+  if (!aaSelectedTeamId) {
+    const activeId = getActiveTeamId();
+    if (activeId) aaSelectedTeamId = activeId;
+  }
+
   if (aaSelectedTeamId && cachedTeams.some(t => t.id === aaSelectedTeamId)) {
     select.value = aaSelectedTeamId;
+    updateAATeamDisplay();
     await loadAAData();
   }
 }
 
 function onAATeamChange() {
   aaSelectedTeamId = document.getElementById('aaTeamSelect').value || null;
+  updateAATeamDisplay();
   if (aaSelectedTeamId) {
     loadAAData();
   } else {
@@ -751,6 +772,59 @@ function onAATeamChange() {
     document.getElementById('aaEmptyExpenses').classList.add('hidden');
     document.getElementById('aaSettlementList').classList.add('hidden');
     document.getElementById('aaAddBtn').classList.add('hidden');
+  }
+}
+
+function updateAATeamDisplay() {
+  const el = document.getElementById('aaTeamDisplay');
+  if (!el) return;
+  const team = cachedTeams.find(t => t.id === aaSelectedTeamId);
+  if (team) {
+    el.innerHTML = `<span class="font-medium">${escapeHtml(team.name)}</span> <button onclick="showTeamSwitcher('aa')" class="text-xs text-primary-500 hover:underline ml-1">切换</button>`;
+  } else {
+    el.innerHTML = `<span class="text-gray-400 text-sm">未选择小分队</span>`;
+  }
+}
+
+function updateGameTeamDisplay() {
+  const el = document.getElementById('gameTeamDisplay');
+  if (!el) return;
+  const team = cachedTeams.find(t => t.id === gameSelectedTeamId);
+  if (team) {
+    el.innerHTML = `<span class="font-medium">${escapeHtml(team.name)}</span> <button onclick="showTeamSwitcher('game')" class="text-xs text-primary-500 hover:underline ml-1">切换</button>`;
+  } else {
+    el.innerHTML = `<span class="text-gray-400 text-sm">未选择小分队</span>`;
+  }
+}
+
+function showTeamSwitcher(context) {
+  const modal = document.getElementById('teamSwitcherModal');
+  const list = document.getElementById('teamSwitcherList');
+  if (!modal || !list) return;
+  list.innerHTML = cachedTeams.map(t => `
+    <div class="team-card mb-2" onclick="selectTeamSwitch('${context}','${t.id}')">
+      <div class="flex items-center justify-between">
+        <span class="font-medium">${escapeHtml(t.name)}</span>
+        <span class="text-xs text-gray-400">${t.members.length}人</span>
+      </div>
+    </div>
+  `).join('');
+  modal.classList.remove('hidden');
+}
+
+function closeTeamSwitcher() {
+  const modal = document.getElementById('teamSwitcherModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function selectTeamSwitch(context, teamId) {
+  closeTeamSwitcher();
+  if (context === 'aa') {
+    document.getElementById('aaTeamSelect').value = teamId;
+    onAATeamChange();
+  } else if (context === 'game') {
+    document.getElementById('gameTeamSelect').value = teamId;
+    onGameTeamChange();
   }
 }
 
@@ -1190,14 +1264,22 @@ async function populateGameTeamSelect() {
     select.appendChild(opt);
   });
 
+  // Auto-select active team if no explicit selection
+  if (!gameSelectedTeamId) {
+    const activeId = getActiveTeamId();
+    if (activeId) gameSelectedTeamId = activeId;
+  }
+
   if (gameSelectedTeamId && cachedTeams.some(t => t.id === gameSelectedTeamId)) {
     select.value = gameSelectedTeamId;
+    updateGameTeamDisplay();
     await loadGameLobby();
   }
 }
 
 function onGameTeamChange() {
   gameSelectedTeamId = document.getElementById('gameTeamSelect').value || null;
+  updateGameTeamDisplay();
   if (gameSelectedTeamId) {
     loadGameLobby();
   } else {
@@ -1399,7 +1481,10 @@ function renderGameState(state) {
         <div class="flex -space-x-2 justify-center mb-4">
           ${state.players.map(p => `<span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]} border-2 border-white dark:border-gray-800">${p.avatar}</span>`).join('')}
         </div>
-        ${state.isHost ? `<button onclick="startExistingGame()" class="px-8 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors ${state.players.length < 3 ? 'opacity-50 cursor-not-allowed' : ''}" ${state.players.length < 3 ? 'disabled' : ''}>开始游戏</button>` : '<p class="text-sm text-gray-400">等待房主开始游戏…</p>'}
+        <div class="flex gap-3 justify-center">
+          ${state.isHost ? `<button onclick="startExistingGame()" class="px-8 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors ${state.players.length < 3 ? 'opacity-50 cursor-not-allowed' : ''}" ${state.players.length < 3 ? 'disabled' : ''}>开始游戏</button>` : '<p class="text-sm text-gray-400">等待房主开始游戏…</p>'}
+          ${state.isHost ? `<button onclick="dissolveGameRoom()" class="px-4 py-2.5 rounded-lg border border-red-300 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors">解散房间</button>` : ''}
+        </div>
       </div>
     `;
   }
@@ -1459,6 +1544,15 @@ function renderGameState(state) {
   }
 
   if (state.phase === 'ended') {
+    if (state.dissolved) {
+      html += `
+        <div class="text-center py-6">
+          <span class="text-6xl mb-4 block">🚪</span>
+          <h2 class="text-xl font-bold mb-2">房间已被房主解散</h2>
+          <button onclick="exitGameRoom()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">返回大厅</button>
+        </div>
+      `;
+    } else {
     const spy = state.players.find(p => p.id === state.spyId);
     const isWin = state.winner === 'civilian';
     html += `
@@ -1479,6 +1573,7 @@ function renderGameState(state) {
         </div>
       </div>
     `;
+    }
   }
 
   container.innerHTML = html;
@@ -1543,6 +1638,21 @@ function exitGameRoom() {
   currentGameId = null;
   currentGameType = null;
   loadGameLobby();
+}
+
+async function dissolveGameRoom() {
+  if (!confirm('确定要解散房间吗？其他玩家将无法继续游戏。')) return;
+  const endpoint = currentGameType === 'codenames' ? '/codenames' : currentGameType === 'splendor' ? '/splendor' : '/games';
+  try {
+    const res = await fetch(`${endpoint}/${currentGameId}/dissolve`, { method: 'POST' });
+    if (res.ok) {
+      showToast('房间已解散', 'info');
+      exitGameRoom();
+    } else {
+      const data = await res.json();
+      showToast(data.error || '解散失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
 }
 
 // ========== 行动代号渲染 ==========
@@ -1674,12 +1784,24 @@ function renderCodenamesState(state) {
       <div class="text-center text-sm text-gray-400 mb-3">${state.allPlayers.length}人已加入</div>
       ${state.isHost ? `
         <div class="text-center">
-          <button onclick="cnStartGame()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors ${redSm && blueSm && redPlayers.length >= 2 && bluePlayers.length >= 2 ? '' : 'opacity-50 cursor-not-allowed'}" ${redSm && blueSm && redPlayers.length >= 2 && bluePlayers.length >= 2 ? '' : 'disabled'}>开始游戏</button>
+          <div class="flex gap-3 justify-center">
+            <button onclick="cnStartGame()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors ${redSm && blueSm && redPlayers.length >= 2 && bluePlayers.length >= 2 ? '' : 'opacity-50 cursor-not-allowed'}" ${redSm && blueSm && redPlayers.length >= 2 && bluePlayers.length >= 2 ? '' : 'disabled'}>开始游戏</button>
+            <button onclick="dissolveGameRoom()" class="px-4 py-2.5 rounded-lg border border-red-300 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors">解散房间</button>
+          </div>
           <p class="text-xs text-gray-400 mt-2">需要每队至少1名队长+1名队员</p>
         </div>
       ` : '<p class="text-center text-sm text-gray-400">等待房主开始游戏…</p>'}
     `;
   } else if (state.phase === 'ended') {
+    if (state.dissolved) {
+      html += `
+        <div class="text-center py-6">
+          <span class="text-6xl mb-4 block">🚪</span>
+          <h2 class="text-xl font-bold mb-2">房间已被房主解散</h2>
+          <button onclick="exitGameRoom()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">返回大厅</button>
+        </div>
+      `;
+    } else {
     const winnerText = state.winner === 'red' ? '红队胜利！' : '蓝队胜利！';
     html += `
       <div class="text-center py-6">
@@ -1696,6 +1818,7 @@ function renderCodenamesState(state) {
         <button onclick="exitGameRoom()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">返回大厅</button>
       </div>
     `;
+    }
   } else {
     // Spymaster-turn or operative-turn
     const isMyTeam = state.myTeam === state.currentTurn;
@@ -1771,6 +1894,10 @@ function renderCodenamesState(state) {
 const GEM_COLORS = { white: '⚪', blue: '🔵', green: '🟢', red: '🔴', black: '⚫', gold: '🟡' };
 const GEM_CSS = { white: 'bg-gray-100 dark:bg-gray-300 text-gray-800', blue: 'bg-blue-400 text-white', green: 'bg-green-500 text-white', red: 'bg-red-500 text-white', black: 'bg-gray-800 text-white', gold: 'bg-yellow-400 text-gray-800' };
 const CARD_COLORS = { white: 'border-gray-300', blue: 'border-blue-400', green: 'border-green-400', red: 'border-red-400', black: 'border-gray-700' };
+const CARD_BANNER_BG = { white: '#d1d5db', blue: '#3b82f6', green: '#22c55e', red: '#ef4444', black: '#1f2937' };
+const CARD_BANNER_TEXT = { white: '#1f2937', blue: '#fff', green: '#fff', red: '#fff', black: '#fff' };
+const GEM_DOT_BG = { white: '#d1d5db', blue: '#3b82f6', green: '#22c55e', red: '#ef4444', black: '#1f2937' };
+const GEM_DOT_TEXT = { white: '#1f2937', blue: '#fff', green: '#fff', red: '#fff', black: '#fff' };
 
 async function spStartGame() {
   try {
@@ -1893,10 +2020,22 @@ function renderSplendorState(state) {
         <div class="flex -space-x-2 justify-center mb-4">
           ${state.players.map(p => `<span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]} border-2 border-white dark:border-gray-800">${p.avatar}</span>`).join('')}
         </div>
-        ${state.isHost ? `<button onclick="spStartGame()" class="px-8 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors ${state.players.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}" ${state.players.length < 2 ? 'disabled' : ''}>开始游戏</button>` : '<p class="text-sm text-gray-400">等待房主开始游戏…</p>'}
+        <div class="flex gap-3 justify-center">
+          ${state.isHost ? `<button onclick="spStartGame()" class="px-8 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors ${state.players.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}" ${state.players.length < 2 ? 'disabled' : ''}>开始游戏</button>` : '<p class="text-sm text-gray-400">等待房主开始游戏…</p>'}
+          ${state.isHost ? `<button onclick="dissolveGameRoom()" class="px-4 py-2.5 rounded-lg border border-red-300 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors">解散房间</button>` : ''}
+        </div>
       </div>
     `;
   } else if (state.phase === 'ended') {
+    if (state.dissolved) {
+      html += `
+        <div class="text-center py-6">
+          <span class="text-6xl mb-4 block">🚪</span>
+          <h2 class="text-xl font-bold mb-2">房间已被房主解散</h2>
+          <button onclick="exitGameRoom()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">返回大厅</button>
+        </div>
+      `;
+    } else {
     const winner = state.players.find(p => p.id === state.winner) || state.players[0];
     html += `
       <div class="text-center py-6">
@@ -1913,14 +2052,18 @@ function renderSplendorState(state) {
         <button onclick="exitGameRoom()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">返回大厅</button>
       </div>
     `;
+    }
   } else if (state.phase === 'playing') {
     // Nobles
     html += `<div class="flex gap-2 mb-3 overflow-x-auto pb-1">`;
     html += `<span class="text-xs text-gray-400 self-center mr-1">贵族:</span>`;
     (state.nobles || []).forEach(noble => {
+      const reqHtml = Object.entries(noble.requirement).map(([c, n]) =>
+        `<span class="spl-cost-gem"><span class="spl-cost-dot" style="background:${GEM_DOT_BG[c]};color:${GEM_DOT_TEXT[c]}">${n}</span></span>`
+      ).join('');
       html += `<div class="spl-noble shrink-0">
         <div class="text-center"><span class="text-lg">👑</span><span class="text-xs font-bold">${noble.points}分</span></div>
-        <div class="text-xs text-gray-500">${Object.entries(noble.requirement).map(([c, n]) => `${GEM_COLORS[c]}${n}`).join(' ')}</div>
+        <div class="text-xs">${reqHtml}</div>
       </div>`;
     });
     html += `</div>`;
@@ -1937,15 +2080,19 @@ function renderSplendorState(state) {
         </div>
         <div class="flex gap-2 overflow-x-auto pb-1">`;
       cards.forEach((card, idx) => {
-        const costStr = Object.entries(card.cost || {}).map(([c, n]) => `${GEM_COLORS[c]}${n}`).join('');
         const canBuy = isMyTurn && canAffordCard(card, state.players[myIndex]);
+        const costHtml = Object.entries(card.cost || {}).map(([c, n]) =>
+          `<span class="spl-cost-gem"><span class="spl-cost-dot" style="background:${GEM_DOT_BG[c]};color:${GEM_DOT_TEXT[c]}">${n}</span></span>`
+        ).join('');
         html += `<div class="spl-card ${CARD_COLORS[card.color] || ''} shrink-0">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-xs font-bold ${card.points > 0 ? 'text-primary-600' : 'text-gray-400'}">${card.points > 0 ? card.points : ''}</span>
-            <span class="text-xs">${GEM_COLORS[card.color]}</span>
+          <div class="spl-card-banner" style="background:${CARD_BANNER_BG[card.color] || '#d1d5db'};color:${CARD_BANNER_TEXT[card.color] || '#1f2937'}">
+            ${card.points > 0 ? `<span class="spl-card-points">${card.points}</span>` : '<span></span>'}
+            <span class="spl-card-reward" style="background:${CARD_BANNER_BG[card.color]}"></span>
           </div>
-          <div class="text-xs text-gray-500 mb-1">${costStr}</div>
-          ${isMyTurn ? `<div class="flex gap-1"><button onclick="spBuyCard('table','${card.id}')" class="text-xs px-1.5 py-0.5 rounded ${canBuy ? 'bg-primary-600 text-white hover:bg-primary-700' : 'bg-gray-200 dark:bg-gray-600 text-gray-400 cursor-not-allowed'}" ${canBuy ? '' : 'disabled'}>买</button><button onclick="spReserveCard('table','${level}',${idx})" class="text-xs px-1.5 py-0.5 rounded bg-yellow-500 text-white hover:bg-yellow-600">留</button></div>` : ''}
+          <div class="spl-card-body">
+            <div class="mb-1.5">${costHtml}</div>
+            ${isMyTurn ? `<div class="flex gap-1"><button onclick="spBuyCard('table','${card.id}')" class="text-xs px-1.5 py-0.5 rounded ${canBuy ? 'bg-primary-600 text-white hover:bg-primary-700' : 'bg-gray-200 dark:bg-gray-600 text-gray-400 cursor-not-allowed'}" ${canBuy ? '' : 'disabled'}>买</button><button onclick="spReserveCard('table','${level}',${idx})" class="text-xs px-1.5 py-0.5 rounded bg-yellow-500 text-white hover:bg-yellow-600">留</button></div>` : ''}
+          </div>
         </div>`;
       });
       html += `</div></div>`;
@@ -1956,15 +2103,19 @@ function renderSplendorState(state) {
     if (me.reservedCards && me.reservedCards.length > 0) {
       html += `<div class="mb-3"><span class="text-xs font-bold text-gray-400 mb-1 block">我的预留卡</span><div class="flex gap-2 overflow-x-auto">`;
       me.reservedCards.forEach(card => {
-        const costStr = Object.entries(card.cost || {}).map(([c, n]) => `${GEM_COLORS[c]}${n}`).join('');
         const canBuy = isMyTurn && canAffordCard(card, me);
+        const costHtml = Object.entries(card.cost || {}).map(([c, n]) =>
+          `<span class="spl-cost-gem"><span class="spl-cost-dot" style="background:${GEM_DOT_BG[c]};color:${GEM_DOT_TEXT[c]}">${n}</span></span>`
+        ).join('');
         html += `<div class="spl-card border-yellow-400 shrink-0">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-xs font-bold ${card.points > 0 ? 'text-primary-600' : 'text-gray-400'}">${card.points > 0 ? card.points : ''}</span>
-            <span class="text-xs">${GEM_COLORS[card.color]}</span>
+          <div class="spl-card-banner" style="background:${CARD_BANNER_BG[card.color] || '#d1d5db'};color:${CARD_BANNER_TEXT[card.color] || '#1f2937'}">
+            ${card.points > 0 ? `<span class="spl-card-points">${card.points}</span>` : '<span></span>'}
+            <span class="spl-card-reward" style="background:${CARD_BANNER_BG[card.color]}"></span>
           </div>
-          <div class="text-xs text-gray-500 mb-1">${costStr}</div>
-          ${isMyTurn && canBuy ? `<button onclick="spBuyCard('reserved','${card.id}')" class="text-xs px-1.5 py-0.5 rounded bg-primary-600 text-white hover:bg-primary-700">购买</button>` : ''}
+          <div class="spl-card-body">
+            <div class="mb-1.5">${costHtml}</div>
+            ${isMyTurn && canBuy ? `<button onclick="spBuyCard('reserved','${card.id}')" class="text-xs px-1.5 py-0.5 rounded bg-primary-600 text-white hover:bg-primary-700">购买</button>` : ''}
+          </div>
         </div>`;
       });
       html += `</div></div>`;
