@@ -116,6 +116,49 @@
          border-2 border-white dark:border-gray-800;
 }
 
+/* ========== 费用卡片 ========== */
+.expense-card {
+  @apply bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700
+         hover:shadow-sm transition-all;
+}
+
+.expense-category-icon {
+  @apply w-10 h-10 rounded-lg flex items-center justify-center text-xl
+         bg-gray-100 dark:bg-gray-700;
+}
+
+/* ========== AA Tab ========== */
+.aa-tab {
+  @apply flex-1 py-2.5 text-center text-sm font-medium rounded-lg transition-colors
+         text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700;
+}
+.aa-tab.active {
+  @apply bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400;
+}
+
+/* ========== 结算转账卡片 ========== */
+.settle-card {
+  @apply bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700;
+}
+
+.settle-card.done {
+  @apply opacity-60;
+}
+
+/* ========== 汇总卡片 ========== */
+.summary-card {
+  @apply bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700;
+}
+
+/* ========== 选择人员 checkbox ========== */
+.member-check {
+  @apply flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600
+         cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors;
+}
+.member-check.checked {
+  @apply border-primary-500 bg-primary-50 dark:bg-primary-900/20;
+}
+
 /* ========== Toast 提示 ========== */
 .toast {
   @apply fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-5 py-2.5
@@ -142,4 +185,74 @@
     opacity: 1;
     transform: translate(-50%, 0);
   }
+}
+
+/* ========== 游戏页面 ========== */
+.game-player {
+  @apply flex flex-col items-center gap-1 p-3 rounded-xl border-2 border-transparent transition-all;
+}
+.game-player.alive {
+  @apply bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700;
+}
+.game-player.eliminated {
+  @apply bg-gray-100 dark:bg-gray-800/50 border-transparent opacity-40;
+}
+.game-player.is-me {
+  @apply border-primary-300 dark:border-primary-700;
+}
+.game-player.is-host::after {
+  content: '👑';
+  @apply absolute -top-2 -right-2 text-sm;
+}
+
+.game-desc-bubble {
+  @apply bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 mb-2;
+}
+
+.game-vote-btn {
+  @apply flex items-center gap-2 w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700
+         hover:border-primary-300 dark:hover:border-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20
+         transition-all text-left;
+}
+.game-vote-btn.voted {
+  @apply border-primary-500 bg-primary-50 dark:bg-primary-900/30;
+}
+
+/* ========== 小分队详情 Tab ========== */
+.team-tab {
+  @apply flex-1 py-2.5 text-center text-sm font-medium rounded-lg transition-colors
+         text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700;
+}
+.team-tab.active {
+  @apply bg-white dark:bg-gray-600 text-primary-600 dark:text-primary-400 shadow-sm;
+}
+
+/* ========== 相册 ========== */
+.photo-grid {
+  @apply grid grid-cols-2 sm:grid-cols-3 gap-3;
+}
+.photo-item {
+  @apply relative aspect-square rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800
+         border border-gray-200 dark:border-gray-700 cursor-pointer
+         hover:shadow-md transition-all;
+}
+.photo-item img {
+  @apply w-full h-full object-cover;
+}
+.photo-item .photo-overlay {
+  @apply absolute inset-0 bg-gradient-to-t from-black/50 to-transparent
+         opacity-0 hover:opacity-100 transition-opacity flex items-end p-2;
+}
+
+/* ========== 行程时间线 ========== */
+.itinerary-item {
+  @apply bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700
+         hover:shadow-sm transition-all;
+}
+.itinerary-type-icon {
+  @apply w-10 h-10 rounded-lg flex items-center justify-center text-xl
+         bg-gray-100 dark:bg-gray-700 shrink-0;
+}
+.itinerary-date-header {
+  @apply text-sm font-bold text-primary-600 dark:text-primary-400 mb-3 mt-4 first:mt-0;
 }

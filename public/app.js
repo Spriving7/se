@@ -130,6 +130,7 @@ function navigateTo(pageName) {
 
   if (pageName === 'teams') renderTeamsPage();
   if (pageName === 'aa') renderAAPage();
+  if (pageName === 'game') renderGamePage();
   if (pageName === 'profile') renderProfilePage();
 }
 
@@ -532,48 +533,84 @@ async function showTeamDetail(teamId) {
       <p class="text-xs text-gray-400 dark:text-gray-500 mt-2">分享邀请码给小伙伴，即可加入小分队</p>
     </div>
 
-    <!-- 成员列表 -->
-    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 mb-4">
-      <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-700">
-        <h3 class="font-semibold text-gray-700 dark:text-gray-300">成员 (${team.members.length})</h3>
-      </div>
-      <div class="divide-y divide-gray-100 dark:divide-gray-700">
-        ${team.members.map(m => {
-          const isTeamCreator = m.id === team.creatorId;
-          return `
-            <div class="flex items-center gap-3 px-5 py-3">
-              <span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[m.id.charCodeAt(0) % AVATAR_COLORS.length]}">${m.avatar}</span>
-              <div class="flex-1 min-w-0">
-                <p class="font-medium truncate">${escapeHtml(m.nickname)}${m.id === (user && user.id) ? ' <span class="text-xs text-gray-400">(我)</span>' : ''}</p>
-                <p class="text-xs text-gray-400 dark:text-gray-500">${isTeamCreator ? '队长' : '队员'} · ${new Date(m.joinedAt).toLocaleDateString()}</p>
+    <!-- Tab 导航 -->
+    <div class="flex gap-1 mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+      <button class="team-tab active" data-teamtab="members" onclick="switchTeamDetailTab('members','${team.id}')">👥 成员</button>
+      <button class="team-tab" data-teamtab="photos" onclick="switchTeamDetailTab('photos','${team.id}')">📸 相册</button>
+      <button class="team-tab" data-teamtab="itinerary" onclick="switchTeamDetailTab('itinerary','${team.id}')">🗺️ 行程</button>
+    </div>
+
+    <!-- 成员 Tab -->
+    <div id="teamTabMembers">
+      <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 mb-4">
+        <div class="px-5 py-3 border-b border-gray-100 dark:border-gray-700">
+          <h3 class="font-semibold text-gray-700 dark:text-gray-300">成员 (${team.members.length})</h3>
+        </div>
+        <div class="divide-y divide-gray-100 dark:divide-gray-700">
+          ${team.members.map(m => {
+            const isTeamCreator = m.id === team.creatorId;
+            return `
+              <div class="flex items-center gap-3 px-5 py-3">
+                <span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[m.id.charCodeAt(0) % AVATAR_COLORS.length]}">${m.avatar}</span>
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium truncate">${escapeHtml(m.nickname)}${m.id === (user && user.id) ? ' <span class="text-xs text-gray-400">(我)</span>' : ''}</p>
+                  <p class="text-xs text-gray-400 dark:text-gray-500">${isTeamCreator ? '队长' : '队员'} · ${new Date(m.joinedAt).toLocaleDateString()}</p>
+                </div>
+                ${isCreator && !isTeamCreator ? `
+                  <button onclick="removeMember('${team.id}', '${m.id}')" class="text-xs text-red-400 hover:text-red-600 transition-colors px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20" title="移除成员">
+                    移除
+                  </button>
+                ` : ''}
               </div>
-              ${isCreator && !isTeamCreator ? `
-                <button onclick="removeMember('${team.id}', '${m.id}')" class="text-xs text-red-400 hover:text-red-600 transition-colors px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20" title="移除成员">
-                  移除
-                </button>
-              ` : ''}
-            </div>
-          `;
-        }).join('')}
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- 操作区 -->
+      <div class="space-y-3">
+        ${isCreator ? `
+          <button onclick="disbandTeam('${team.id}')" class="w-full py-3 rounded-xl border border-red-300 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors">
+            解散小分队
+          </button>
+        ` : `
+          <button onclick="leaveTeam('${team.id}')" class="w-full py-3 rounded-xl border border-red-300 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors">
+            退出小分队
+          </button>
+        `}
       </div>
     </div>
 
-    <!-- 操作区 -->
-    <div class="space-y-3">
-      ${isCreator ? `
-        <button onclick="disbandTeam('${team.id}')" class="w-full py-3 rounded-xl border border-red-300 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors">
-          解散小分队
-        </button>
-      ` : `
-        <button onclick="leaveTeam('${team.id}')" class="w-full py-3 rounded-xl border border-red-300 dark:border-red-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors">
-          退出小分队
-        </button>
-      `}
+    <!-- 相册 Tab -->
+    <div id="teamTabPhotos" class="hidden">
+      ${renderTeamPhotos(team)}
+    </div>
+
+    <!-- 行程 Tab -->
+    <div id="teamTabItinerary" class="hidden">
+      ${renderTeamItinerary()}
     </div>
   `;
 
   navigateTo('team-detail');
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+}
+
+function switchTeamDetailTab(tab, teamId) {
+  document.querySelectorAll('.team-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.teamtab === tab);
+  });
+
+  const membersEl = document.getElementById('teamTabMembers');
+  const photosEl = document.getElementById('teamTabPhotos');
+  const itineraryEl = document.getElementById('teamTabItinerary');
+
+  membersEl.classList.toggle('hidden', tab !== 'members');
+  photosEl.classList.toggle('hidden', tab !== 'photos');
+  itineraryEl.classList.toggle('hidden', tab !== 'itinerary');
+
+  if (tab === 'photos') loadTeamPhotos(teamId);
+  if (tab === 'itinerary') loadTeamItinerary(teamId);
 }
 
 function copyJoinCode(code) {
@@ -1108,6 +1145,680 @@ async function undoSettlement(settlementId) {
   } catch {
     showToast('网络错误', 'error');
   }
+}
+
+// ========== 在线桌游 - 谁是卧底 ==========
+
+let gameSelectedTeamId = null;
+let currentGameId = null;
+let gamePollInterval = null;
+
+const ITI_TYPE_ICONS = { food: '🍔', transport: '🚕', accommodation: '🏨', activity: '🎯', shopping: '🛍️', other: '📌' };
+
+function renderGamePage() {
+  const user = getUser();
+  const loginPrompt = document.getElementById('gameLoginPrompt');
+  const content = document.getElementById('gameContent');
+
+  if (!user) {
+    loginPrompt.classList.remove('hidden');
+    content.classList.add('hidden');
+    return;
+  }
+
+  loginPrompt.classList.add('hidden');
+  content.classList.remove('hidden');
+  populateGameTeamSelect();
+}
+
+async function populateGameTeamSelect() {
+  const select = document.getElementById('gameTeamSelect');
+  const user = getUser();
+  if (!user) return;
+
+  try {
+    const res = await fetch('/teams');
+    if (res.ok) cachedTeams = await res.json();
+  } catch { /* use cached */ }
+
+  select.innerHTML = '<option value="">-- 选择小分队 --</option>';
+  cachedTeams.forEach(team => {
+    const opt = document.createElement('option');
+    opt.value = team.id;
+    opt.textContent = team.name;
+    select.appendChild(opt);
+  });
+
+  if (gameSelectedTeamId && cachedTeams.some(t => t.id === gameSelectedTeamId)) {
+    select.value = gameSelectedTeamId;
+    await loadGameLobby();
+  }
+}
+
+function onGameTeamChange() {
+  gameSelectedTeamId = document.getElementById('gameTeamSelect').value || null;
+  if (gameSelectedTeamId) {
+    loadGameLobby();
+  } else {
+    document.getElementById('gameLobby').classList.add('hidden');
+    document.getElementById('gameRoom').classList.add('hidden');
+    stopGamePoll();
+  }
+}
+
+async function loadGameLobby() {
+  if (!gameSelectedTeamId) return;
+  stopGamePoll();
+
+  try {
+    const res = await fetch('/games');
+    const allGames = res.ok ? await res.json() : [];
+    const games = allGames.filter(g => g.teamId === gameSelectedTeamId);
+    renderActiveGames(games);
+  } catch { /* ignore */ }
+
+  document.getElementById('gameLobby').classList.remove('hidden');
+  document.getElementById('gameRoom').classList.add('hidden');
+}
+
+function renderActiveGames(games) {
+  const user = getUser();
+  const listEl = document.getElementById('activeGamesList');
+  const emptyEl = document.getElementById('noActiveGames');
+
+  if (games.length === 0) {
+    listEl.innerHTML = '';
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+
+  emptyEl.classList.add('hidden');
+  listEl.innerHTML = games.map(g => {
+    const inGame = g.players.some(p => p.id === user.id);
+    const phaseText = { lobby: '等待中', describing: '描述中', voting: '投票中', result: '淘汰结果', ended: '已结束' }[g.phase] || g.phase;
+    return `
+      <div class="team-card mb-3">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-bold">🎭 谁是卧底</h3>
+          <span class="text-xs px-2 py-0.5 rounded-full ${g.phase === 'lobby' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400'}">${phaseText}</span>
+        </div>
+        <div class="flex items-center gap-2 mb-3">
+          <div class="flex -space-x-1">
+            ${g.players.slice(0, 5).map(p => `<span class="w-8 h-8 rounded-full flex items-center justify-center text-sm ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]} border-2 border-white dark:border-gray-800">${p.avatar}</span>`).join('')}
+          </div>
+          <span class="text-sm text-gray-500">${g.players.length}人</span>
+        </div>
+        ${inGame
+          ? `<button onclick="joinGameRoom('${g.id}')" class="w-full py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors">进入游戏</button>`
+          : g.phase === 'lobby'
+            ? `<button onclick="joinExistingGame('${g.id}')" class="w-full py-2 rounded-lg border-2 border-primary-600 text-primary-600 dark:text-primary-400 text-sm font-medium hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">加入游戏</button>`
+            : `<span class="block text-center text-sm text-gray-400">游戏进行中</span>`
+        }
+      </div>
+    `;
+  }).join('');
+}
+
+async function createNewGame() {
+  if (!gameSelectedTeamId) { showToast('请先选择小分队', 'error'); return; }
+  try {
+    const res = await fetch('/games', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teamId: gameSelectedTeamId }),
+    });
+    if (res.ok) {
+      const game = await res.json();
+      currentGameId = game.id;
+      await joinGameRoom(game.id);
+      showToast('游戏已创建！', 'success');
+    } else {
+      const data = await res.json();
+      showToast(data.error || '创建失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+async function joinExistingGame(gameId) {
+  try {
+    const res = await fetch(`/games/${gameId}/join`, { method: 'POST' });
+    if (res.ok) {
+      currentGameId = gameId;
+      await joinGameRoom(gameId);
+    } else {
+      const data = await res.json();
+      showToast(data.error || '加入失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+async function joinGameRoom(gameId) {
+  currentGameId = gameId;
+  document.getElementById('gameLobby').classList.add('hidden');
+  document.getElementById('gameRoom').classList.remove('hidden');
+  await refreshGameState();
+  startGamePoll();
+}
+
+function startGamePoll() {
+  stopGamePoll();
+  gamePollInterval = setInterval(refreshGameState, 2000);
+}
+
+function stopGamePoll() {
+  if (gamePollInterval) {
+    clearInterval(gamePollInterval);
+    gamePollInterval = null;
+  }
+}
+
+async function refreshGameState() {
+  if (!currentGameId) return;
+  try {
+    const res = await fetch(`/games/${currentGameId}`);
+    if (!res.ok) { stopGamePoll(); return; }
+    const state = await res.json();
+    renderGameState(state);
+  } catch { /* ignore */ }
+}
+
+function renderGameState(state) {
+  const user = getUser();
+  const container = document.getElementById('gameRoomContent');
+  const alive = state.players.filter(p => p.alive);
+  const me = state.players.find(p => p.id === user.id);
+  const myTurn = state.currentDescriber && state.currentDescriber.id === user.id;
+
+  let html = `
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <button class="back-btn" onclick="exitGameRoom()">←</button>
+        <h2 class="text-lg font-bold">🎭 谁是卧底</h2>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500">第 ${state.round} 轮</span>
+        ${state.myWord ? `<span class="text-xs px-2 py-1 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">你的词：${escapeHtml(state.myWord)}</span>` : ''}
+      </div>
+    </div>
+
+    <!-- 玩家列表 -->
+    <div class="grid grid-cols-4 gap-2 mb-6">
+      ${state.players.map(p => `
+        <div class="game-player ${p.alive ? 'alive' : 'eliminated'} ${p.id === user.id ? 'is-me' : ''} relative">
+          <span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]}">${p.avatar}</span>
+          <span class="text-xs font-medium truncate w-full text-center">${escapeHtml(p.nickname)}</span>
+          ${p.id === state.hostId ? '<span class="absolute -top-1 -right-1 text-xs">👑</span>' : ''}
+          ${!p.alive ? '<span class="absolute inset-0 flex items-center justify-center text-2xl">✕</span>' : ''}
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  if (state.phase === 'lobby') {
+    html += `
+      <div class="placeholder-card">
+        <span class="text-5xl mb-4">🎭</span>
+        <p class="text-gray-500 dark:text-gray-400 text-lg font-medium">等待玩家加入</p>
+        <p class="text-gray-400 dark:text-gray-500 text-sm mt-1 mb-4">${state.players.length} 人已就绪（至少3人）</p>
+        <div class="flex -space-x-2 justify-center mb-4">
+          ${state.players.map(p => `<span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]} border-2 border-white dark:border-gray-800">${p.avatar}</span>`).join('')}
+        </div>
+        ${state.isHost ? `<button onclick="startExistingGame()" class="px-8 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors ${state.players.length < 3 ? 'opacity-50 cursor-not-allowed' : ''}" ${state.players.length < 3 ? 'disabled' : ''}>开始游戏</button>` : '<p class="text-sm text-gray-400">等待房主开始游戏…</p>'}
+      </div>
+    `;
+  }
+
+  if (state.phase === 'describing') {
+    const descriptions = Object.entries(state.descriptions).map(([uid, text]) => {
+      const p = state.players.find(pl => pl.id === uid);
+      return p ? `<div class="game-desc-bubble"><span class="text-sm font-medium">${p.avatar} ${escapeHtml(p.nickname)}：</span><span class="text-sm text-gray-600 dark:text-gray-300">${escapeHtml(text)}</span></div>` : '';
+    }).join('');
+
+    html += `
+      <div class="mb-4">
+        <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">
+          ${state.currentDescriber ? `轮到 ${state.currentDescriber.avatar} ${escapeHtml(state.currentDescriber.nickname)} 描述` : '描述阶段'}
+        </h3>
+        ${descriptions}
+      </div>
+      ${me && me.alive && myTurn ? `
+        <div class="flex gap-2">
+          <input id="descInput" type="text" placeholder="用一句话描述你的词…" maxlength="50"
+            class="form-input flex-1" onkeydown="if(event.key==='Enter')submitDesc()">
+          <button onclick="submitDesc()" class="px-4 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">发送</button>
+        </div>
+      ` : myTurn ? '' : '<p class="text-sm text-gray-400 text-center">等待其他玩家描述…</p>'}
+    `;
+  }
+
+  if (state.phase === 'voting') {
+    const hasVoted = false; // We don't expose individual votes, so check locally
+    html += `
+      <div class="mb-4">
+        <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">投票阶段 — 选择你认为是卧底的人</h3>
+        <p class="text-xs text-gray-400 mb-3">${state.votedCount || 0}/${state.totalVoters || alive.length} 人已投票</p>
+        <div class="space-y-2">
+          ${alive.filter(p => p.id !== user.id).map(p => `
+            <button class="game-vote-btn" onclick="submitVote('${p.id}')">
+              <span class="w-8 h-8 rounded-full flex items-center justify-center text-lg ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]}">${p.avatar}</span>
+              <span class="font-medium">${escapeHtml(p.nickname)}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  if (state.phase === 'result') {
+    const eliminated = state.players.find(p => p.id === state.eliminatedPlayerId);
+    const isSpy = eliminated && eliminated.id === state.spyId;
+    html += `
+      <div class="text-center py-6">
+        <span class="text-5xl mb-3 block">${isSpy ? '🎉' : '💀'}</span>
+        <h3 class="text-lg font-bold mb-1">${eliminated ? `${eliminated.avatar} ${escapeHtml(eliminated.nickname)} 被淘汰` : '淘汰结果'}</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">${isSpy ? '淘汰的是卧底！好人阵营得分！' : '淘汰的是平民…卧底还在潜伏！'}</p>
+        ${state.isHost ? `<button onclick="goNextRound()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">下一轮</button>` : '<p class="text-sm text-gray-400">等待房主开启下一轮…</p>'}
+      </div>
+    `;
+  }
+
+  if (state.phase === 'ended') {
+    const spy = state.players.find(p => p.id === state.spyId);
+    const isWin = state.winner === 'civilian';
+    html += `
+      <div class="text-center py-6">
+        <span class="text-6xl mb-4 block">${isWin ? '🎊' : '🎭'}</span>
+        <h2 class="text-xl font-bold mb-2">${isWin ? '好人阵营胜利！' : '卧底胜利！'}</h2>
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 mb-4 inline-block">
+          <p class="text-sm text-gray-500 dark:text-gray-400">卧底是</p>
+          <p class="text-lg font-bold mt-1">${spy ? `${spy.avatar} ${escapeHtml(spy.nickname)}` : '未知'}</p>
+          <p class="text-sm mt-2">
+            <span class="text-gray-500">平民词：</span><span class="font-medium">${escapeHtml(state.civilianWord || '')}</span>
+            <span class="mx-2">|</span>
+            <span class="text-gray-500">卧底词：</span><span class="font-medium">${escapeHtml(state.spyWord || '')}</span>
+          </p>
+        </div>
+        <div>
+          <button onclick="exitGameRoom()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">返回大厅</button>
+        </div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+}
+
+async function startExistingGame() {
+  try {
+    const res = await fetch(`/games/${currentGameId}/start`, { method: 'POST' });
+    if (!res.ok) {
+      const data = await res.json();
+      showToast(data.error || '开始失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+async function submitDesc() {
+  const input = document.getElementById('descInput');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) { showToast('请输入描述', 'error'); return; }
+  try {
+    const res = await fetch(`/games/${currentGameId}/describe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      showToast(data.error || '提交失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+async function submitVote(targetId) {
+  try {
+    const res = await fetch(`/games/${currentGameId}/vote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetId }),
+    });
+    if (res.ok) {
+      showToast('投票成功', 'success');
+    } else {
+      const data = await res.json();
+      showToast(data.error || '投票失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+async function goNextRound() {
+  try {
+    const res = await fetch(`/games/${currentGameId}/next-round`, { method: 'POST' });
+    if (!res.ok) {
+      const data = await res.json();
+      showToast(data.error || '操作失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+function exitGameRoom() {
+  stopGamePoll();
+  currentGameId = null;
+  loadGameLobby();
+}
+
+// ========== 旅行相册 ==========
+
+let photoDetailTeamId = null;
+
+function navigateToAlbum() {
+  const user = getUser();
+  if (!user) { showLoginModal(); return; }
+  navigateTo('teams');
+  showToast('选择小分队后可查看相册', 'info');
+}
+
+function renderTeamPhotos(team) {
+  const user = getUser();
+  return `
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-gray-700 dark:text-gray-300">照片墙</h3>
+      <button onclick="showUploadPhotoModal()" class="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors">+ 上传照片</button>
+    </div>
+    <div id="photoGrid" class="photo-grid">
+      <div class="col-span-full text-center py-8 text-gray-400">
+        <p>加载中…</p>
+      </div>
+    </div>
+  `;
+}
+
+async function loadTeamPhotos(teamId) {
+  photoDetailTeamId = teamId;
+  try {
+    const res = await fetch(`/photos/${teamId}`);
+    if (!res.ok) return;
+    const photos = await res.json();
+    renderPhotoGrid(photos);
+  } catch { /* ignore */ }
+}
+
+function renderPhotoGrid(photos) {
+  const grid = document.getElementById('photoGrid');
+  if (!grid) return;
+  const user = getUser();
+
+  if (photos.length === 0) {
+    grid.innerHTML = '<div class="col-span-full"><div class="placeholder-card"><span class="text-5xl mb-4">📷</span><p class="text-gray-400 text-lg">还没有照片</p><p class="text-gray-400 text-sm mt-1">上传第一张旅行照片吧</p></div></div>';
+    return;
+  }
+
+  grid.innerHTML = photos.map(p => `
+    <div class="photo-item" onclick="openLightbox('/photos/file/${p.filename}','${escapeHtml(p.caption || p.uploaderNickname)}')">
+      <img src="/photos/file/${p.filename}" alt="${escapeHtml(p.caption || '照片')}" loading="lazy">
+      <div class="photo-overlay">
+        <div class="text-white text-xs w-full">
+          <p class="truncate">${escapeHtml(p.caption || '')}</p>
+          <p class="opacity-70">${p.uploaderNickname} · ${new Date(p.createdAt).toLocaleDateString()}</p>
+          ${user && user.id === p.uploaderId ? `<button onclick="event.stopPropagation();deletePhotoItem('${p.id}')" class="text-red-300 hover:text-red-200 text-xs mt-1">删除</button>` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showUploadPhotoModal() {
+  if (!photoDetailTeamId) return;
+  document.getElementById('uploadPhotoModal').classList.remove('hidden');
+  document.getElementById('photoFileInput').value = '';
+  document.getElementById('photoCaption').value = '';
+  document.getElementById('photoPreviewContainer').classList.add('hidden');
+}
+
+function closeUploadPhotoModal() {
+  document.getElementById('uploadPhotoModal').classList.add('hidden');
+}
+
+function previewPhoto(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById('photoPreview').src = e.target.result;
+    document.getElementById('photoPreviewContainer').classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadPhoto() {
+  const fileInput = document.getElementById('photoFileInput');
+  const file = fileInput.files[0];
+  if (!file) { showToast('请选择照片', 'error'); return; }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const base64 = e.target.result;
+    const caption = document.getElementById('photoCaption').value.trim();
+
+    try {
+      const res = await fetch('/photos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamId: photoDetailTeamId, base64, caption }),
+      });
+      if (res.ok) {
+        closeUploadPhotoModal();
+        loadTeamPhotos(photoDetailTeamId);
+        showToast('照片已上传', 'success');
+      } else {
+        const data = await res.json();
+        showToast(data.error || '上传失败', 'error');
+      }
+    } catch { showToast('网络错误', 'error'); }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function deletePhotoItem(photoId) {
+  if (!confirm('确定要删除这张照片吗？')) return;
+  try {
+    const res = await fetch(`/photos/${photoId}`, { method: 'DELETE' });
+    if (res.ok) {
+      loadTeamPhotos(photoDetailTeamId);
+      showToast('照片已删除', 'info');
+    } else {
+      showToast('删除失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+function openLightbox(src, caption) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightboxCaption').textContent = caption;
+  document.getElementById('lightboxModal').classList.remove('hidden');
+}
+
+function closeLightbox() {
+  document.getElementById('lightboxModal').classList.add('hidden');
+}
+
+// ========== 行程共享 ==========
+
+let itineraryDetailTeamId = null;
+let editingItiId = null;
+
+function renderTeamItinerary() {
+  return `
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-gray-700 dark:text-gray-300">行程安排</h3>
+      <button onclick="showItineraryModal()" class="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors">+ 添加行程</button>
+    </div>
+    <div id="itineraryList">
+      <div class="text-center py-8 text-gray-400"><p>加载中…</p></div>
+    </div>
+  `;
+}
+
+async function loadTeamItinerary(teamId) {
+  itineraryDetailTeamId = teamId;
+  try {
+    const res = await fetch(`/itinerary/${teamId}`);
+    if (!res.ok) return;
+    const items = await res.json();
+    renderItineraryList(items);
+  } catch { /* ignore */ }
+}
+
+function renderItineraryList(items) {
+  const listEl = document.getElementById('itineraryList');
+  if (!listEl) return;
+  const user = getUser();
+
+  if (items.length === 0) {
+    listEl.innerHTML = '<div class="placeholder-card"><span class="text-5xl mb-4">🗺️</span><p class="text-gray-400 text-lg">暂无行程安排</p><p class="text-gray-400 text-sm mt-1">添加第一项行程吧</p></div>';
+    return;
+  }
+
+  // 按日期分组
+  const grouped = {};
+  items.forEach(item => {
+    if (!grouped[item.date]) grouped[item.date] = [];
+    grouped[item.date].push(item);
+  });
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  listEl.innerHTML = Object.entries(grouped).map(([date, dateItems]) => {
+    const d = new Date(date);
+    const isToday = date === today;
+    const weekday = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+    return `
+      <div class="itinerary-date-header">${d.getMonth() + 1}月${d.getDate()}日 周${weekday} ${isToday ? '<span class="text-xs ml-1 text-green-500">今天</span>' : ''}</div>
+      ${dateItems.map(item => `
+        <div class="itinerary-item mb-2">
+          <div class="flex items-start gap-3">
+            <div class="itinerary-type-icon">${ITI_TYPE_ICONS[item.type] || '📌'}</div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <h4 class="font-medium">${item.time ? '<span class="text-primary-500 mr-1">' + item.time + '</span>' : ''}${escapeHtml(item.title)}</h4>
+                ${user && user.id === item.creatorId ? `
+                  <div class="flex gap-2 shrink-0 ml-2">
+                    <button onclick="editItineraryItem('${item.id}')" class="text-xs text-gray-400 hover:text-primary-500">编辑</button>
+                    <button onclick="deleteItineraryItemById('${item.id}')" class="text-xs text-gray-400 hover:text-red-500">删除</button>
+                  </div>
+                ` : ''}
+              </div>
+              ${item.description ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">${escapeHtml(item.description)}</p>` : ''}
+              <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${item.creatorNickname}</p>
+            </div>
+          </div>
+        </div>
+      `).join('')}
+    `;
+  }).join('');
+}
+
+function showItineraryModal(item) {
+  editingItiId = item ? item.id : null;
+  const title = document.getElementById('itineraryModalTitle');
+  const deleteBtn = document.getElementById('itiDeleteBtn');
+
+  if (item) {
+    title.textContent = '编辑行程';
+    deleteBtn.classList.remove('hidden');
+    document.getElementById('itiDate').value = item.date;
+    document.getElementById('itiTime').value = item.time || '';
+    document.getElementById('itiTitle').value = item.title;
+    document.getElementById('itiType').value = item.type;
+    document.getElementById('itiDesc').value = item.description || '';
+  } else {
+    title.textContent = '添加行程';
+    deleteBtn.classList.add('hidden');
+    document.getElementById('itiDate').value = '';
+    document.getElementById('itiTime').value = '';
+    document.getElementById('itiTitle').value = '';
+    document.getElementById('itiType').value = 'activity';
+    document.getElementById('itiDesc').value = '';
+  }
+
+  document.getElementById('itineraryModal').classList.remove('hidden');
+}
+
+function closeItineraryModal() {
+  document.getElementById('itineraryModal').classList.add('hidden');
+  editingItiId = null;
+}
+
+async function saveItineraryItem() {
+  const date = document.getElementById('itiDate').value;
+  const time = document.getElementById('itiTime').value;
+  const title = document.getElementById('itiTitle').value.trim();
+  const type = document.getElementById('itiType').value;
+  const description = document.getElementById('itiDesc').value.trim();
+
+  if (!date || !title) { showToast('请填写日期和标题', 'error'); return; }
+
+  const body = { teamId: itineraryDetailTeamId, date, time, title, type, description };
+
+  try {
+    let res;
+    if (editingItiId) {
+      res = await fetch(`/itinerary/${editingItiId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } else {
+      res = await fetch('/itinerary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    }
+
+    if (res.ok) {
+      closeItineraryModal();
+      loadTeamItinerary(itineraryDetailTeamId);
+      showToast(editingItiId ? '行程已更新' : '行程已添加', 'success');
+    } else {
+      const data = await res.json();
+      showToast(data.error || '操作失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+async function deleteItineraryItem() {
+  if (!editingItiId || !confirm('确定要删除此行程吗？')) return;
+  try {
+    const res = await fetch(`/itinerary/${editingItiId}`, { method: 'DELETE' });
+    if (res.ok) {
+      closeItineraryModal();
+      loadTeamItinerary(itineraryDetailTeamId);
+      showToast('行程已删除', 'info');
+    } else { showToast('删除失败', 'error'); }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+async function editItineraryItem(itemId) {
+  try {
+    const res = await fetch(`/itinerary/${itineraryDetailTeamId}`);
+    if (!res.ok) return;
+    const items = await res.json();
+    const item = items.find(i => i.id === itemId);
+    if (item) showItineraryModal(item);
+  } catch { /* ignore */ }
+}
+
+async function deleteItineraryItemById(itemId) {
+  if (!confirm('确定要删除此行程吗？')) return;
+  try {
+    const res = await fetch(`/itinerary/${itemId}`, { method: 'DELETE' });
+    if (res.ok) {
+      loadTeamItinerary(itineraryDetailTeamId);
+      showToast('行程已删除', 'info');
+    } else { showToast('删除失败', 'error'); }
+  } catch { showToast('网络错误', 'error'); }
 }
 
 // ========== 事件绑定 ==========
