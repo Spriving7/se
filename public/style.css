@@ -22,14 +22,14 @@
          border border-gray-200 dark:border-gray-700
          hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-600
          hover:-translate-y-0.5 active:scale-[0.98]
-         transition-all duration-200;
+         transition-all duration-200 text-center;
 }
 
 /* ========== 占位卡片 ========== */
 .placeholder-card {
-  @apply flex flex-col items-center justify-center py-20 rounded-xl
+  @apply flex flex-col items-center justify-center py-16 px-6 rounded-xl
          bg-white dark:bg-gray-800 border-2 border-dashed
-         border-gray-200 dark:border-gray-700;
+         border-gray-200 dark:border-gray-700 text-center;
 }
 
 /* ========== 返回按钮 ========== */
@@ -50,19 +50,39 @@
 
 /* ========== 模态框 ========== */
 .modal {
-  @apply fixed inset-0 z-[100] flex items-center justify-center p-4;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
 }
 .modal.hidden {
   display: none;
 }
 .modal-backdrop {
-  @apply absolute inset-0 bg-black/50 backdrop-blur-sm;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 .modal-content {
-  @apply relative bg-white dark:bg-gray-800 rounded-2xl p-6 w-full
-         border border-gray-200 dark:border-gray-700 shadow-2xl
-         max-h-[90vh] overflow-y-auto;
+  position: relative;
+  background: white;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-height: 90vh;
+  overflow-y: auto;
   animation: modalIn 0.2s ease-out;
+}
+.dark .modal-content {
+  background: #1f2937;
+  border-color: #374151;
 }
 
 @keyframes modalIn {
@@ -128,6 +148,9 @@
 }
 
 /* ========== AA Tab ========== */
+.aa-tabs-container:not(.hidden) {
+  display: flex;
+}
 .aa-tab {
   @apply flex-1 py-2.5 text-center text-sm font-medium rounded-lg transition-colors
          text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700;
@@ -149,6 +172,9 @@
 .summary-card {
   @apply bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700;
 }
+.aa-summary-container:not(.hidden) {
+  display: grid;
+}
 
 /* ========== 选择人员 checkbox ========== */
 .member-check {
@@ -161,19 +187,28 @@
 
 /* ========== Toast 提示 ========== */
 .toast {
-  @apply fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-5 py-2.5
-         rounded-lg shadow-lg text-white text-sm font-medium
-         transition-all duration-300;
+  position: fixed;
+  top: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s;
   animation: toastIn 0.3s ease-out;
 }
 .toast.success {
-  @apply bg-green-500;
+  background: #22c55e;
 }
 .toast.error {
-  @apply bg-red-500;
+  background: #ef4444;
 }
 .toast.info {
-  @apply bg-primary-500;
+  background: #3b82f6;
 }
 
 @keyframes toastIn {

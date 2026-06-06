@@ -82,7 +82,7 @@
 
   <!-- ========== 登录模态框 ========== -->
   <div id="loginModal" class="modal hidden">
-    <div class="modal-backdrop"></div>
+    <div class="modal-backdrop" onclick="hideLoginModal()"></div>
     <div class="modal-content max-w-sm">
       <div class="text-center">
         <div class="text-5xl mb-3">✈️</div>
@@ -92,15 +92,13 @@
         <!-- 设置昵称 -->
         <div class="mb-4">
           <input id="loginNickname" type="text" placeholder="输入你的昵称" maxlength="20"
-            class="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600
-                   bg-white dark:bg-gray-700 text-center text-lg focus:outline-none
-                   focus:ring-2 focus:ring-primary-400 focus:border-transparent transition">
+            class="form-input text-center text-lg">
         </div>
 
         <!-- 选择头像 -->
         <div class="mb-6">
           <p class="text-sm text-gray-500 dark:text-gray-400 mb-3">选择一个头像</p>
-          <div id="avatarPicker" class="flex flex-wrap justify-center gap-3">
+          <div id="avatarPicker" class="flex flex-wrap justify-center gap-2.5">
             <!-- 头像选项由 JS 生成 -->
           </div>
         </div>
@@ -233,54 +231,38 @@
 
       <!-- 功能卡片 -->
       <h2 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">功能一览</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
 
-        <button class="feature-card" data-page="teams">
-          <div class="flex items-start gap-4">
-            <span class="text-4xl">👥</span>
-            <div class="text-left">
-              <h3 class="font-bold text-lg">旅游小分队</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                创建或加入旅游小分队，和小伙伴一起出发
-              </p>
-            </div>
-          </div>
+        <button class="feature-card text-center" data-page="teams">
+          <span class="text-4xl block mb-2">👥</span>
+          <h3 class="font-bold">旅游小分队</h3>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
+            创建或加入小分队，一起出发
+          </p>
         </button>
 
-        <button class="feature-card" data-page="aa">
-          <div class="flex items-start gap-4">
-            <span class="text-4xl">💰</span>
-            <div class="text-left">
-              <h3 class="font-bold text-lg">AA 分摊计算器</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                记录旅行开销，自动计算最优还款方案，谁也不用多付一分钱
-              </p>
-            </div>
-          </div>
+        <button class="feature-card text-center" data-page="aa">
+          <span class="text-4xl block mb-2">💰</span>
+          <h3 class="font-bold">AA 记账</h3>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
+            记录开销，自动计算还款方案
+          </p>
         </button>
 
-        <button class="feature-card" data-page="game">
-          <div class="flex items-start gap-4">
-            <span class="text-4xl">🎲</span>
-            <div class="text-left">
-              <h3 class="font-bold text-lg">在线桌游</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                旅途无聊？来一局谁是卧底、你画我猜，手机就是游戏机
-              </p>
-            </div>
-          </div>
+        <button class="feature-card text-center" data-page="game">
+          <span class="text-4xl block mb-2">🎲</span>
+          <h3 class="font-bold">在线桌游</h3>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
+            谁是卧底、行动代号、璀璨宝石
+          </p>
         </button>
 
-        <button class="feature-card" data-page="teams" onclick="navigateToAlbum()">
-          <div class="flex items-start gap-4">
-            <span class="text-4xl">📸</span>
-            <div class="text-left">
-              <h3 class="font-bold text-lg">旅行相册</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                选择小分队，共享旅行照片，记录精彩瞬间
-              </p>
-            </div>
-          </div>
+        <button class="feature-card text-center" data-page="teams" onclick="navigateToAlbum()">
+          <span class="text-4xl block mb-2">📸</span>
+          <h3 class="font-bold">旅行相册</h3>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
+            共享旅行照片，记录精彩瞬间
+          </p>
         </button>
 
       </div>
@@ -296,10 +278,10 @@
       <!-- 未登录提示 -->
       <div id="teamsLoginPrompt" class="hidden">
         <div class="placeholder-card">
-          <span class="text-5xl mb-4">🔒</span>
+          <span class="text-5xl mb-4 block">🔒</span>
           <p class="text-gray-500 dark:text-gray-400 text-lg font-medium">请先登录</p>
           <p class="text-gray-400 dark:text-gray-500 text-sm mt-1 mb-4">登录后即可创建和加入旅游小分队</p>
-          <button onclick="showLoginModal()" class="px-6 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">
+          <button onclick="showLoginModal()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">
             登录
           </button>
         </div>
@@ -354,10 +336,10 @@
       <!-- 未登录提示 -->
       <div id="aaLoginPrompt" class="hidden">
         <div class="placeholder-card">
-          <span class="text-5xl mb-4">🔒</span>
+          <span class="text-5xl mb-4 block">🔒</span>
           <p class="text-gray-500 dark:text-gray-400 text-lg font-medium">请先登录</p>
           <p class="text-gray-400 dark:text-gray-500 text-sm mt-1 mb-4">登录后即可使用 AA 记账功能</p>
-          <button onclick="showLoginModal()" class="px-6 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">
+          <button onclick="showLoginModal()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">
             登录
           </button>
         </div>
@@ -376,7 +358,7 @@
         </div>
 
         <!-- 汇总卡片 -->
-        <div id="aaSummary" class="hidden grid grid-cols-2 gap-3 mb-4">
+        <div id="aaSummary" class="aa-summary-container hidden grid-cols-2 gap-3 mb-4">
           <div class="summary-card text-center">
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">总支出</p>
             <p id="aaTotalExpense" class="text-xl font-bold text-primary-600 dark:text-primary-400">¥0</p>
@@ -388,7 +370,7 @@
         </div>
 
         <!-- Tab 切换 -->
-        <div id="aaTabs" class="hidden flex gap-2 mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+        <div id="aaTabs" class="aa-tabs-container hidden gap-2 mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
           <button class="aa-tab active" data-aatab="expenses" onclick="switchAATab('expenses')">明细</button>
           <button class="aa-tab" data-aatab="settlement" onclick="switchAATab('settlement')">结算</button>
         </div>
@@ -425,10 +407,10 @@
       <!-- 未登录提示 -->
       <div id="gameLoginPrompt" class="hidden">
         <div class="placeholder-card">
-          <span class="text-5xl mb-4">🔒</span>
+          <span class="text-5xl mb-4 block">🔒</span>
           <p class="text-gray-500 dark:text-gray-400 text-lg font-medium">请先登录</p>
           <p class="text-gray-400 dark:text-gray-500 text-sm mt-1 mb-4">登录后即可开始游戏</p>
-          <button onclick="showLoginModal()" class="px-6 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">登录</button>
+          <button onclick="showLoginModal()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">登录</button>
         </div>
       </div>
 
@@ -486,9 +468,10 @@
       <!-- 未登录 -->
       <div id="profileLoginPrompt" class="hidden">
         <div class="placeholder-card">
-          <span class="text-5xl mb-4">👤</span>
+          <span class="text-5xl mb-4 block">👤</span>
           <p class="text-gray-500 dark:text-gray-400 text-lg font-medium">尚未登录</p>
-          <button onclick="showLoginModal()" class="mt-4 px-6 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">
+          <p class="text-gray-400 dark:text-gray-500 text-sm mt-1 mb-4">登录后即可使用全部功能</p>
+          <button onclick="showLoginModal()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">
             登录
           </button>
         </div>
