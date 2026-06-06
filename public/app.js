@@ -2330,16 +2330,22 @@ function closeLightbox() {
 
 let itineraryDetailTeamId = null;
 let editingItiId = null;
+let itiMapView = false; // false=list, true=map
+let itiMapInstance = null;
 
 function renderTeamItinerary() {
   return `
     <div class="flex items-center justify-between mb-4">
       <h3 class="font-semibold text-gray-700 dark:text-gray-300">行程安排</h3>
-      <button onclick="showItineraryModal()" class="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors">+ 添加行程</button>
+      <div class="flex items-center gap-2">
+        <button onclick="toggleItineraryView()" id="itiViewToggle" class="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">🗺️ 地图</button>
+        <button onclick="showItineraryModal()" class="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors">+ 添加行程</button>
+      </div>
     </div>
     <div id="itineraryList">
       <div class="text-center py-8 text-gray-400"><p>加载中…</p></div>
     </div>
+    <div id="itineraryMap" class="hidden rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700"></div>
   `;
 }
 
@@ -2350,7 +2356,98 @@ async function loadTeamItinerary(teamId) {
     if (!res.ok) return;
     const items = await res.json();
     renderItineraryList(items);
+    if (itiMapView) renderItineraryMap(items);
   } catch { /* ignore */ }
+}
+
+function toggleItineraryView() {
+  itiMapView = !itiMapView;
+  const listEl = document.getElementById('itineraryList');
+  const mapEl = document.getElementById('itineraryMap');
+  const toggleBtn = document.getElementById('itiViewToggle');
+  if (itiMapView) {
+    listEl.classList.add('hidden');
+    mapEl.classList.remove('hidden');
+    toggleBtn.textContent = '📋 列表';
+    loadTeamItinerary(itineraryDetailTeamId);
+  } else {
+    listEl.classList.remove('hidden');
+    mapEl.classList.add('hidden');
+    toggleBtn.textContent = '🗺️ 地图';
+  }
+}
+
+function initItineraryMap() {
+  if (itiMapInstance) return itiMapInstance;
+  const mapEl = document.getElementById('itineraryMap');
+  if (!mapEl) return null;
+  itiMapInstance = L.map(mapEl).setView([35.86, 104.19], 4);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap',
+    maxZoom: 18,
+  }).addTo(itiMapInstance);
+  return itiMapInstance;
+}
+
+function renderItineraryMap(items) {
+  const map = initItineraryMap();
+  if (!map) return;
+  setTimeout(() => map.invalidateSize(), 100);
+
+  // 清除旧图层
+  map.eachLayer((layer) => {
+    if (layer instanceof L.Marker || layer instanceof L.Polyline) map.removeLayer(layer);
+  });
+
+  const geoItems = items.filter((i) => i.latitude && i.longitude);
+  if (geoItems.length === 0) {
+    map.setView([35.86, 104.19], 4);
+    return;
+  }
+
+  const markers = [];
+  geoItems.forEach((item) => {
+    const lat = parseFloat(item.latitude);
+    const lng = parseFloat(item.longitude);
+    const marker = L.marker([lat, lng]).addTo(map);
+    marker.bindPopup(`
+      <div style="min-width:150px">
+        <strong>${escapeHtml(item.title)}</strong><br>
+        <span style="font-size:12px;color:#666">${item.date}${item.time ? ' ' + item.time : ''}</span>
+        ${item.location ? '<br><span style="font-size:12px;color:#888">📍 ' + escapeHtml(item.location) + '</span>' : ''}
+        ${item.description ? '<br><span style="font-size:12px;color:#888">' + escapeHtml(item.description) + '</span>' : ''}
+      </div>
+    `);
+    markers.push([lat, lng]);
+  });
+
+  // 按日期顺序连线
+  if (markers.length > 1) {
+    L.polyline(markers, { color: '#2563eb', weight: 3, opacity: 0.7, dashArray: '8,8' }).addTo(map);
+  }
+
+  map.fitBounds(L.latLngBounds(markers).pad(0.2));
+}
+
+async function geocodeLocation() {
+  const locationText = document.getElementById('itiLocation').value.trim();
+  const statusEl = document.getElementById('itiGeoStatus');
+  if (!locationText) { statusEl.textContent = '请先输入地点'; return; }
+
+  statusEl.textContent = '正在定位…';
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locationText)}&format=json&limit=1`);
+    const data = await res.json();
+    if (data.length > 0) {
+      document.getElementById('itiLat').value = data[0].lat;
+      document.getElementById('itiLng').value = data[0].lon;
+      statusEl.textContent = `已定位: ${data[0].display_name.split(',').slice(0, 2).join(',')}`;
+    } else {
+      statusEl.textContent = '未找到该地点，请尝试更具体的描述';
+    }
+  } catch {
+    statusEl.textContent = '定位失败，请检查网络';
+  }
 }
 
 function renderItineraryList(items) {
@@ -2393,6 +2490,7 @@ function renderItineraryList(items) {
                 ` : ''}
               </div>
               ${item.description ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">${escapeHtml(item.description)}</p>` : ''}
+              ${item.location ? `<p class="text-xs text-primary-500 mt-0.5">📍 ${escapeHtml(item.location)}</p>` : ''}
               <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${item.creatorNickname}</p>
             </div>
           </div>
@@ -2415,6 +2513,10 @@ function showItineraryModal(item) {
     document.getElementById('itiTitle').value = item.title;
     document.getElementById('itiType').value = item.type;
     document.getElementById('itiDesc').value = item.description || '';
+    document.getElementById('itiLocation').value = item.location || '';
+    document.getElementById('itiLat').value = item.latitude || '';
+    document.getElementById('itiLng').value = item.longitude || '';
+    document.getElementById('itiGeoStatus').textContent = item.location ? '已保存的地点' : '';
   } else {
     title.textContent = '添加行程';
     deleteBtn.classList.add('hidden');
@@ -2423,6 +2525,10 @@ function showItineraryModal(item) {
     document.getElementById('itiTitle').value = '';
     document.getElementById('itiType').value = 'activity';
     document.getElementById('itiDesc').value = '';
+    document.getElementById('itiLocation').value = '';
+    document.getElementById('itiLat').value = '';
+    document.getElementById('itiLng').value = '';
+    document.getElementById('itiGeoStatus').textContent = '';
   }
 
   document.getElementById('itineraryModal').classList.remove('hidden');
@@ -2442,7 +2548,11 @@ async function saveItineraryItem() {
 
   if (!date || !title) { showToast('请填写日期和标题', 'error'); return; }
 
-  const body = { teamId: itineraryDetailTeamId, date, time, title, type, description };
+  const body = { teamId: itineraryDetailTeamId, date, time, title, type, description,
+    location: document.getElementById('itiLocation').value.trim(),
+    latitude: document.getElementById('itiLat').value,
+    longitude: document.getElementById('itiLng').value,
+  };
 
   try {
     let res;
@@ -2520,4 +2630,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelector('#loginModal .modal-backdrop').addEventListener('click', hideLoginModal);
 
   initApp();
+
+  // 注册 Service Worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
 });

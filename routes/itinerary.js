@@ -22,24 +22,24 @@ router.get('/:teamId', (req, res) => {
 
 // POST /itinerary — 创建行程项
 router.post('/', (req, res) => {
-  const { teamId, date, time, title, description, type } = req.body;
+  const { teamId, date, time, title, description, type, latitude, longitude, location } = req.body;
   if (!teamId || !date || !title) {
     return res.status(400).json({ error: '请填写必要信息' });
   }
   if (!checkMember(teamId, req.user.id)) {
     return res.status(403).json({ error: '无权操作' });
   }
-  const item = addItem(teamId, req.user.id, req.user.nickname, { date, time, title, description, type });
+  const item = addItem(teamId, req.user.id, req.user.nickname, { date, time, title, description, type, latitude, longitude, location });
   res.json(item);
 });
 
 // PUT /itinerary/:id — 更新行程项
 router.put('/:id', (req, res) => {
-  const { teamId, date, time, title, description, type } = req.body;
+  const { teamId, date, time, title, description, type, latitude, longitude, location } = req.body;
   if (teamId && !checkMember(teamId, req.user.id)) {
     return res.status(403).json({ error: '无权操作' });
   }
-  const item = updateItem(req.params.id, req.user.id, { date, time, title, description, type });
+  const item = updateItem(req.params.id, req.user.id, { date, time, title, description, type, latitude, longitude, location });
   if (!item) return res.status(400).json({ error: '更新失败' });
   res.json(item);
 });

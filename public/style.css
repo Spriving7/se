@@ -292,6 +292,13 @@
   @apply text-sm font-bold text-primary-600 dark:text-primary-400 mb-3 mt-4 first:mt-0;
 }
 
+/* ========== 旅行地图 ========== */
+#itineraryMap {
+  height: 400px;
+  width: 100%;
+  background: #f0f0f0;
+}
+
 /* ========== 行动代号 ========== */
 .cn-grid {
   @apply grid grid-cols-5 gap-1.5;

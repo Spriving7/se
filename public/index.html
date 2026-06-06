@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>旅游小助手</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -29,6 +34,7 @@
     }
   </script>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
 <body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-300">
@@ -692,6 +698,16 @@
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">备注</label>
           <textarea id="itiDesc" rows="2" placeholder="补充说明…" maxlength="100" class="form-input resize-none"></textarea>
         </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">地点</label>
+          <div class="flex gap-2">
+            <input id="itiLocation" type="text" placeholder="例：三亚天涯海角" maxlength="80" class="form-input flex-1">
+            <button type="button" onclick="geocodeLocation()" class="px-3 py-2.5 rounded-lg bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-sm font-medium hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors whitespace-nowrap">定位</button>
+          </div>
+          <input id="itiLat" type="hidden">
+          <input id="itiLng" type="hidden">
+          <p id="itiGeoStatus" class="text-xs text-gray-400 mt-1"></p>
+        </div>
       </div>
       <div class="flex gap-3 mt-6">
         <button onclick="closeItineraryModal()" class="flex-1 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">取消</button>
@@ -744,6 +760,7 @@
   <!-- 底部安全间距（为移动端 tab 栏留空） -->
   <div class="h-16 md:h-0"></div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
