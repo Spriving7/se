@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#2563eb">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="apple-touch-icon" href="/icons/icon-192.svg">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -60,6 +60,10 @@
 
       <!-- 右侧操作 -->
       <div class="flex items-center gap-2">
+        <!-- PWA 安装按钮 -->
+        <button id="pwaInstallBtn" onclick="installPWA()" class="hidden px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors" title="安装应用">
+          📲 安装
+        </button>
         <!-- 主题切换 -->
         <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors" title="切换主题">
           <span id="themeIcon" class="text-xl">🌙</span>

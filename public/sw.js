@@ -1,12 +1,12 @@
-const CACHE_NAME = 'travel-v1';
+const CACHE_NAME = 'travel-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/app.js',
   '/style.css',
   '/manifest.json',
-  '/icons/icon-192.svg',
-  '/icons/icon-512.svg',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
 ];
 
 // 安装：预缓存静态资源

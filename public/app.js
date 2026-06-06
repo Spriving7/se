@@ -2614,6 +2614,34 @@ async function deleteItineraryItemById(itemId) {
   } catch { showToast('网络错误', 'error'); }
 }
 
+// ========== PWA 安装 ==========
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  // 显示安装按钮
+  const btn = document.getElementById('pwaInstallBtn');
+  if (btn) btn.classList.remove('hidden');
+});
+
+async function installPWA() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const result = await deferredInstallPrompt.userChoice;
+  if (result.outcome === 'accepted') showToast('已添加到主屏幕！', 'success');
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('pwaInstallBtn');
+  if (btn) btn.classList.add('hidden');
+}
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('pwaInstallBtn');
+  if (btn) btn.classList.add('hidden');
+  showToast('应用已安装', 'success');
+});
+
 // ========== 事件绑定 ==========
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
