@@ -447,8 +447,15 @@
         <!-- 游戏大厅 -->
         <div id="gameLobby" class="hidden">
           <div class="flex gap-3 mb-6">
+            <div class="relative flex-1">
+              <select id="gameTypeSelect" class="w-full py-3 px-4 rounded-xl border-2 border-primary-600 text-primary-600 dark:text-primary-400 dark:border-primary-400 bg-white dark:bg-gray-800 font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 transition">
+                <option value="spy">🎭 谁是卧底</option>
+                <option value="codenames">🕵️ 行动代号</option>
+                <option value="splendor">💎 璀璨宝石</option>
+              </select>
+            </div>
             <button onclick="createNewGame()" class="flex-1 py-3 rounded-xl bg-primary-600 hover:bg-primary-700 text-white font-medium flex items-center justify-center gap-2 transition-colors">
-              <span class="text-lg">🎮</span> 创建谁是卧底
+              <span class="text-lg">🎮</span> 创建游戏
             </button>
           </div>
           <h3 class="text-base font-semibold text-gray-600 dark:text-gray-400 mb-3">进行中的游戏</h3>

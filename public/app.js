@@ -1147,10 +1147,11 @@ async function undoSettlement(settlementId) {
   }
 }
 
-// ========== 在线桌游 - 谁是卧底 ==========
+// ========== 在线桌游 ==========
 
 let gameSelectedTeamId = null;
 let currentGameId = null;
+let currentGameType = null;
 let gamePollInterval = null;
 
 const ITI_TYPE_ICONS = { food: '🍔', transport: '🚕', accommodation: '🏨', activity: '🎯', shopping: '🛍️', other: '📌' };
@@ -1211,10 +1212,20 @@ async function loadGameLobby() {
   stopGamePoll();
 
   try {
-    const res = await fetch('/games');
-    const allGames = res.ok ? await res.json() : [];
-    const games = allGames.filter(g => g.teamId === gameSelectedTeamId);
-    renderActiveGames(games);
+    const [spyRes, cnRes, spRes] = await Promise.all([
+      fetch('/games'),
+      fetch('/codenames'),
+      fetch('/splendor'),
+    ]);
+    const spyGames = spyRes.ok ? await spyRes.json() : [];
+    const cnGames = cnRes.ok ? await cnRes.json() : [];
+    const spGames = spRes.ok ? await spRes.json() : [];
+    const allGames = [
+      ...spyGames.filter(g => g.teamId === gameSelectedTeamId),
+      ...cnGames.filter(g => g.teamId === gameSelectedTeamId),
+      ...spGames.filter(g => g.teamId === gameSelectedTeamId),
+    ];
+    renderActiveGames(allGames);
   } catch { /* ignore */ }
 
   document.getElementById('gameLobby').classList.remove('hidden');
@@ -1232,26 +1243,40 @@ function renderActiveGames(games) {
     return;
   }
 
+  const typeInfo = {
+    spy: { icon: '🎭', name: '谁是卧底' },
+    codenames: { icon: '🕵️', name: '行动代号' },
+    splendor: { icon: '💎', name: '璀璨宝石' },
+  };
+
   emptyEl.classList.add('hidden');
   listEl.innerHTML = games.map(g => {
-    const inGame = g.players.some(p => p.id === user.id);
-    const phaseText = { lobby: '等待中', describing: '描述中', voting: '投票中', result: '淘汰结果', ended: '已结束' }[g.phase] || g.phase;
+    const type = g.type || 'spy';
+    const info = typeInfo[type] || typeInfo.spy;
+    const players = g.players || g.allPlayers || [];
+    const inGame = players.some(p => p.id === user.id);
+    const phaseMap = {
+      lobby: '等待中', setup: '组队中', describing: '描述中', voting: '投票中',
+      result: '淘汰结果', 'spymaster-turn': '队长出题', 'operative-turn': '队员猜词',
+      playing: '游戏中', ended: '已结束',
+    };
+    const phaseText = phaseMap[g.phase] || g.phase;
     return `
       <div class="team-card mb-3">
         <div class="flex items-center justify-between mb-2">
-          <h3 class="font-bold">🎭 谁是卧底</h3>
-          <span class="text-xs px-2 py-0.5 rounded-full ${g.phase === 'lobby' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400'}">${phaseText}</span>
+          <h3 class="font-bold">${info.icon} ${info.name}</h3>
+          <span class="text-xs px-2 py-0.5 rounded-full ${g.phase === 'lobby' || g.phase === 'setup' ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : g.phase === 'ended' ? 'bg-gray-100 dark:bg-gray-700 text-gray-500' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400'}">${phaseText}</span>
         </div>
         <div class="flex items-center gap-2 mb-3">
           <div class="flex -space-x-1">
-            ${g.players.slice(0, 5).map(p => `<span class="w-8 h-8 rounded-full flex items-center justify-center text-sm ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]} border-2 border-white dark:border-gray-800">${p.avatar}</span>`).join('')}
+            ${players.slice(0, 5).map(p => `<span class="w-8 h-8 rounded-full flex items-center justify-center text-sm ${AVATAR_COLORS[(p.id || '').charCodeAt(0) % AVATAR_COLORS.length]} border-2 border-white dark:border-gray-800">${p.avatar}</span>`).join('')}
           </div>
-          <span class="text-sm text-gray-500">${g.players.length}人</span>
+          <span class="text-sm text-gray-500">${players.length}人</span>
         </div>
         ${inGame
-          ? `<button onclick="joinGameRoom('${g.id}')" class="w-full py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors">进入游戏</button>`
-          : g.phase === 'lobby'
-            ? `<button onclick="joinExistingGame('${g.id}')" class="w-full py-2 rounded-lg border-2 border-primary-600 text-primary-600 dark:text-primary-400 text-sm font-medium hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">加入游戏</button>`
+          ? `<button onclick="joinGameRoom('${g.id}','${type}')" class="w-full py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors">进入游戏</button>`
+          : g.phase === 'lobby' || g.phase === 'setup'
+            ? `<button onclick="joinExistingGame('${g.id}','${type}')" class="w-full py-2 rounded-lg border-2 border-primary-600 text-primary-600 dark:text-primary-400 text-sm font-medium hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">加入游戏</button>`
             : `<span class="block text-center text-sm text-gray-400">游戏进行中</span>`
         }
       </div>
@@ -1261,16 +1286,18 @@ function renderActiveGames(games) {
 
 async function createNewGame() {
   if (!gameSelectedTeamId) { showToast('请先选择小分队', 'error'); return; }
+  const type = document.getElementById('gameTypeSelect').value;
+  const endpoint = type === 'codenames' ? '/codenames' : type === 'splendor' ? '/splendor' : '/games';
   try {
-    const res = await fetch('/games', {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ teamId: gameSelectedTeamId }),
     });
     if (res.ok) {
       const game = await res.json();
-      currentGameId = game.id;
-      await joinGameRoom(game.id);
+      currentGameType = type;
+      await joinGameRoom(game.id, type);
       showToast('游戏已创建！', 'success');
     } else {
       const data = await res.json();
@@ -1279,12 +1306,17 @@ async function createNewGame() {
   } catch { showToast('网络错误', 'error'); }
 }
 
-async function joinExistingGame(gameId) {
+async function joinExistingGame(gameId, type) {
+  const endpoint = type === 'codenames' ? '/codenames' : type === 'splendor' ? '/splendor' : '/games';
   try {
-    const res = await fetch(`/games/${gameId}/join`, { method: 'POST' });
+    const res = await fetch(`${endpoint}/${gameId}/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
     if (res.ok) {
-      currentGameId = gameId;
-      await joinGameRoom(gameId);
+      currentGameType = type;
+      await joinGameRoom(gameId, type);
     } else {
       const data = await res.json();
       showToast(data.error || '加入失败', 'error');
@@ -1292,8 +1324,9 @@ async function joinExistingGame(gameId) {
   } catch { showToast('网络错误', 'error'); }
 }
 
-async function joinGameRoom(gameId) {
+async function joinGameRoom(gameId, type) {
   currentGameId = gameId;
+  currentGameType = type || currentGameType;
   document.getElementById('gameLobby').classList.add('hidden');
   document.getElementById('gameRoom').classList.remove('hidden');
   await refreshGameState();
@@ -1314,11 +1347,14 @@ function stopGamePoll() {
 
 async function refreshGameState() {
   if (!currentGameId) return;
+  const endpoint = currentGameType === 'codenames' ? '/codenames' : currentGameType === 'splendor' ? '/splendor' : '/games';
   try {
-    const res = await fetch(`/games/${currentGameId}`);
+    const res = await fetch(`${endpoint}/${currentGameId}`);
     if (!res.ok) { stopGamePoll(); return; }
     const state = await res.json();
-    renderGameState(state);
+    if (currentGameType === 'codenames') renderCodenamesState(state);
+    else if (currentGameType === 'splendor') renderSplendorState(state);
+    else renderGameState(state);
   } catch { /* ignore */ }
 }
 
@@ -1505,7 +1541,503 @@ async function goNextRound() {
 function exitGameRoom() {
   stopGamePoll();
   currentGameId = null;
+  currentGameType = null;
   loadGameLobby();
+}
+
+// ========== 行动代号渲染 ==========
+async function cnSetRole(team, role) {
+  try {
+    const res = await fetch(`/codenames/${currentGameId}/set-role`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ team, role }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      showToast(data.error || '操作失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+async function cnGiveClue() {
+  const word = document.getElementById('cnClueWord').value.trim();
+  const count = document.getElementById('cnClueCount').value;
+  if (!word) { showToast('请输入线索词', 'error'); return; }
+  try {
+    const res = await fetch(`/codenames/${currentGameId}/clue`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ word, count: parseInt(count) }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      showToast(data.error || '给线索失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+async function cnGuessCard(index) {
+  try {
+    const res = await fetch(`/codenames/${currentGameId}/guess`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cardIndex: index }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      showToast(data.error || '猜词失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+async function cnEndTurn() {
+  try {
+    const res = await fetch(`/codenames/${currentGameId}/end-turn`, { method: 'POST' });
+    if (!res.ok) {
+      const data = await res.json();
+      showToast(data.error || '操作失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+async function cnStartGame() {
+  try {
+    const res = await fetch(`/codenames/${currentGameId}/start`, { method: 'POST' });
+    if (!res.ok) {
+      const data = await res.json();
+      showToast(data.error || '开始失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+function renderCodenamesState(state) {
+  const user = getUser();
+  const container = document.getElementById('gameRoomContent');
+  const colorLabels = { red: '红队', blue: '蓝队', neutral: '中立', assassin: '刺客' };
+  const colorClasses = {
+    red: 'bg-red-500 text-white',
+    blue: 'bg-blue-500 text-white',
+    neutral: 'bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200',
+    assassin: 'bg-gray-900 text-white',
+  };
+
+  let html = `
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <button class="back-btn" onclick="exitGameRoom()">←</button>
+        <h2 class="text-lg font-bold">🕵️ 行动代号</h2>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs px-2 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600">红 ${state.scores.red}</span>
+        <span class="text-xs px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600">蓝 ${state.scores.blue}</span>
+        ${state.currentTurn ? `<span class="text-xs px-2 py-1 rounded-full ${state.currentTurn === 'red' ? 'bg-red-100 dark:bg-red-900/30 text-red-600' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-600'}">${state.currentTurn === 'red' ? '红方' : '蓝方'}回合</span>` : ''}
+      </div>
+    </div>
+  `;
+
+  if (state.phase === 'setup') {
+    const myPlayer = state.allPlayers.find(p => p.id === user.id);
+    const myTeam = myPlayer ? myPlayer.team : null;
+    const redPlayers = state.allPlayers.filter(p => p.team === 'red');
+    const bluePlayers = state.allPlayers.filter(p => p.team === 'blue');
+    const redSm = state.redTeam.spymaster;
+    const blueSm = state.blueTeam.spymaster;
+
+    html += `
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <!-- Red team -->
+        <div class="cn-team-panel rounded-xl p-4 border-2 ${myTeam === 'red' ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-700'}">
+          <h3 class="font-bold text-red-600 dark:text-red-400 mb-2">🔴 红队 (${redPlayers.length}人)</h3>
+          <div class="space-y-1 mb-3">
+            ${redPlayers.map(p => `<div class="text-sm flex items-center gap-1"><span>${p.avatar}</span><span>${escapeHtml(p.nickname)}</span>${state.redTeam.spymaster === p.id ? '<span class="text-xs bg-red-200 dark:bg-red-800 px-1 rounded">队长</span>' : ''}</div>`).join('')}
+          </div>
+          ${myTeam !== 'red' ? `<button onclick="cnSetRole('red','operative')" class="w-full py-1.5 rounded-lg border border-red-400 text-red-500 text-xs hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">加入红队</button>` : ''}
+        </div>
+        <!-- Blue team -->
+        <div class="cn-team-panel rounded-xl p-4 border-2 ${myTeam === 'blue' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}">
+          <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-2">🔵 蓝队 (${bluePlayers.length}人)</h3>
+          <div class="space-y-1 mb-3">
+            ${bluePlayers.map(p => `<div class="text-sm flex items-center gap-1"><span>${p.avatar}</span><span>${escapeHtml(p.nickname)}</span>${state.blueTeam.spymaster === p.id ? '<span class="text-xs bg-blue-200 dark:bg-blue-800 px-1 rounded">队长</span>' : ''}</div>`).join('')}
+          </div>
+          ${myTeam !== 'blue' ? `<button onclick="cnSetRole('blue','operative')" class="w-full py-1.5 rounded-lg border border-blue-400 text-blue-500 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">加入蓝队</button>` : ''}
+        </div>
+      </div>
+      ${myTeam ? `
+        <div class="text-center mb-3">
+          ${!state[myTeam + 'Team'].spymaster || state[myTeam + 'Team'].spymaster !== user.id
+            ? `<button onclick="cnSetRole('${myTeam}','spymaster')" class="px-4 py-1.5 rounded-lg bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 text-sm hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors">成为队长🕵️</button>`
+            : `<span class="text-sm text-yellow-600 dark:text-yellow-400">你是队长🕵️</span>`
+          }
+        </div>
+      ` : ''}
+      <div class="text-center text-sm text-gray-400 mb-3">${state.allPlayers.length}人已加入</div>
+      ${state.isHost ? `
+        <div class="text-center">
+          <button onclick="cnStartGame()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors ${redSm && blueSm && redPlayers.length >= 2 && bluePlayers.length >= 2 ? '' : 'opacity-50 cursor-not-allowed'}" ${redSm && blueSm && redPlayers.length >= 2 && bluePlayers.length >= 2 ? '' : 'disabled'}>开始游戏</button>
+          <p class="text-xs text-gray-400 mt-2">需要每队至少1名队长+1名队员</p>
+        </div>
+      ` : '<p class="text-center text-sm text-gray-400">等待房主开始游戏…</p>'}
+    `;
+  } else if (state.phase === 'ended') {
+    const winnerText = state.winner === 'red' ? '红队胜利！' : '蓝队胜利！';
+    html += `
+      <div class="text-center py-6">
+        <span class="text-6xl mb-4 block">🏆</span>
+        <h2 class="text-xl font-bold mb-4 ${state.winner === 'red' ? 'text-red-600' : 'text-blue-600'}">${winnerText}</h2>
+        <!-- Show full grid -->
+        <div class="cn-grid mb-4">
+          ${state.grid.map((card, i) => `
+            <div class="cn-card revealed ${card.color === 'red' ? 'cn-red' : card.color === 'blue' ? 'cn-blue' : card.color === 'assassin' ? 'cn-assassin' : 'cn-neutral'}">
+              <span class="cn-word">${escapeHtml(card.word)}</span>
+            </div>
+          `).join('')}
+        </div>
+        <button onclick="exitGameRoom()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">返回大厅</button>
+      </div>
+    `;
+  } else {
+    // Spymaster-turn or operative-turn
+    const isMyTeam = state.myTeam === state.currentTurn;
+    const amSpymaster = state.isSpymaster;
+    const amOperative = state.myTeam === state.currentTurn && !state.isSpymaster;
+
+    // Clue area
+    html += `
+      <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 mb-4">
+        ${state.clue
+          ? `<div class="text-center"><span class="text-lg font-bold">线索：</span><span class="text-2xl font-bold text-primary-600 dark:text-primary-400">${escapeHtml(state.clue.word)}</span> <span class="text-lg text-gray-500">(${state.clue.count})</span><span class="text-sm text-gray-400 ml-2">剩余 ${state.remainingGuesses} 次</span></div>`
+          : '<div class="text-center text-sm text-gray-400">等待队长给出线索…</div>'
+        }
+      </div>
+    `;
+
+    // Grid
+    html += `<div class="cn-grid mb-4">`;
+    state.grid.forEach((card, i) => {
+      const showColor = card.revealed || amSpymaster;
+      let colorClass = 'cn-hidden';
+      if (card.revealed) {
+        colorClass = card.color === 'red' ? 'cn-red' : card.color === 'blue' ? 'cn-blue' : card.color === 'assassin' ? 'cn-assassin' : 'cn-neutral';
+      } else if (amSpymaster) {
+        colorClass = card.color === 'red' ? 'cn-red cn-dimmed' : card.color === 'blue' ? 'cn-blue cn-dimmed' : card.color === 'assassin' ? 'cn-assassin cn-dimmed' : 'cn-neutral cn-dimmed';
+      }
+
+      const canGuess = state.phase === 'operative-turn' && amOperative && !card.revealed && state.remainingGuesses > 0;
+
+      html += `<div class="cn-card ${colorClass} ${card.revealed ? 'revealed' : ''} ${canGuess ? 'cn-guessable' : ''}" ${canGuess ? `onclick="cnGuessCard(${i})"` : ''}>
+        <span class="cn-word">${escapeHtml(card.word)}</span>
+      </div>`;
+    });
+    html += `</div>`;
+
+    // Spymaster clue input
+    if (state.phase === 'spymaster-turn' && amSpymaster && isMyTeam) {
+      html += `
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+          <p class="text-sm font-medium mb-2">给出线索词和数量</p>
+          <div class="flex gap-2">
+            <input id="cnClueWord" type="text" placeholder="线索词" maxlength="10" class="form-input flex-1" onkeydown="if(event.key==='Enter')cnGiveClue()">
+            <input id="cnClueCount" type="number" min="0" max="9" value="1" class="form-input w-16 text-center">
+            <button onclick="cnGiveClue()" class="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors">发送</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Operative end turn button
+    if (state.phase === 'operative-turn' && amOperative && state.remainingGuesses > 0) {
+      html += `
+        <div class="text-center mt-3">
+          <button onclick="cnEndTurn()" class="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">结束猜测</button>
+        </div>
+      `;
+    }
+
+    // Log
+    if (state.log && state.log.length > 0) {
+      html += `<div class="mt-4"><h4 class="text-xs font-semibold text-gray-400 mb-2">历史记录</h4>`;
+      state.log.forEach(entry => {
+        html += `<div class="text-xs text-gray-500 mb-1">${entry.team === 'red' ? '红' : '蓝'}方线索: ${escapeHtml(entry.clue.word)}(${entry.clue.count}) → ${(entry.guesses || []).map(g => g.word).join(', ') || '无'}</div>`;
+      });
+      html += `</div>`;
+    }
+  }
+
+  container.innerHTML = html;
+}
+
+// ========== 璀璨宝石渲染 ==========
+const GEM_COLORS = { white: '⚪', blue: '🔵', green: '🟢', red: '🔴', black: '⚫', gold: '🟡' };
+const GEM_CSS = { white: 'bg-gray-100 dark:bg-gray-300 text-gray-800', blue: 'bg-blue-400 text-white', green: 'bg-green-500 text-white', red: 'bg-red-500 text-white', black: 'bg-gray-800 text-white', gold: 'bg-yellow-400 text-gray-800' };
+const CARD_COLORS = { white: 'border-gray-300', blue: 'border-blue-400', green: 'border-green-400', red: 'border-red-400', black: 'border-gray-700' };
+
+async function spStartGame() {
+  try {
+    const res = await fetch(`/splendor/${currentGameId}/start`, { method: 'POST' });
+    if (!res.ok) {
+      const data = await res.json();
+      showToast(data.error || '开始失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+async function spTakeGems(gems) {
+  try {
+    const res = await fetch(`/splendor/${currentGameId}/take-gems`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gems }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      showToast(data.error || '操作失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+async function spReserveCard(source, level, index) {
+  try {
+    const res = await fetch(`/splendor/${currentGameId}/reserve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source, cardIndex: { level, index } }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      showToast(data.error || '操作失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+async function spBuyCard(source, cardId) {
+  try {
+    const res = await fetch(`/splendor/${currentGameId}/buy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source, cardId }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      showToast(data.error || '购买失败', 'error');
+    }
+  } catch { showToast('网络错误', 'error'); }
+}
+
+let spGemSelection = {};
+
+function spToggleGem(color) {
+  if (color === 'gold') return;
+  if (!spGemSelection[color]) spGemSelection[color] = 0;
+  spGemSelection[color]++;
+  // Cap at 2 for same color, 1 for different colors
+  const colors = Object.keys(spGemSelection).filter(c => spGemSelection[c] > 0);
+  if (colors.length > 3) {
+    spGemSelection = {};
+    spGemSelection[color] = 1;
+  }
+  renderSpGemSelector();
+}
+
+function spClearGems() {
+  spGemSelection = {};
+  renderSpGemSelector();
+}
+
+function renderSpGemSelector() {
+  const el = document.getElementById('spGemSelector');
+  if (!el) return;
+  const gemColors = ['white', 'blue', 'green', 'red', 'black'];
+  el.innerHTML = `
+    <div class="flex gap-2 flex-wrap items-center">
+      ${gemColors.map(c => `<button onclick="spToggleGem('${c}')" class="spl-gem-btn px-3 py-1.5 rounded-full text-sm font-bold ${GEM_CSS[c]} ${spGemSelection[c] ? 'ring-2 ring-primary-400' : ''}">${GEM_COLORS[c]} ×${spGemSelection[c] || 0}</button>`).join('')}
+      <button onclick="spClearGems()" class="text-xs text-gray-400 hover:underline ml-2">清除</button>
+    </div>
+  `;
+}
+
+function spConfirmTakeGems() {
+  const filtered = {};
+  for (const [c, n] of Object.entries(spGemSelection)) {
+    if (n > 0) filtered[c] = n;
+  }
+  if (Object.keys(filtered).length === 0) { showToast('请选择宝石', 'error'); return; }
+  spTakeGems(filtered);
+  spGemSelection = {};
+}
+
+function renderSplendorState(state) {
+  const user = getUser();
+  const container = document.getElementById('gameRoomContent');
+  const myIndex = state.players.findIndex(p => p.id === user.id);
+  const isMyTurn = state.currentPlayerIndex === myIndex;
+
+  let html = `
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <button class="back-btn" onclick="exitGameRoom()">←</button>
+        <h2 class="text-lg font-bold">💎 璀璨宝石</h2>
+      </div>
+      <div class="flex items-center gap-2">
+        ${state.phase === 'playing' ? `<span class="text-xs px-2 py-1 rounded-full ${isMyTurn ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-500'}">${isMyTurn ? '你的回合' : `${state.players[state.currentPlayerIndex].nickname}的回合`}</span>` : ''}
+      </div>
+    </div>
+  `;
+
+  if (state.phase === 'lobby') {
+    html += `
+      <div class="placeholder-card">
+        <span class="text-5xl mb-4">💎</span>
+        <p class="text-gray-500 dark:text-gray-400 text-lg font-medium">等待玩家加入</p>
+        <p class="text-gray-400 dark:text-gray-500 text-sm mt-1 mb-4">${state.players.length} 人已就绪（2-4人）</p>
+        <div class="flex -space-x-2 justify-center mb-4">
+          ${state.players.map(p => `<span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]} border-2 border-white dark:border-gray-800">${p.avatar}</span>`).join('')}
+        </div>
+        ${state.isHost ? `<button onclick="spStartGame()" class="px-8 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors ${state.players.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}" ${state.players.length < 2 ? 'disabled' : ''}>开始游戏</button>` : '<p class="text-sm text-gray-400">等待房主开始游戏…</p>'}
+      </div>
+    `;
+  } else if (state.phase === 'ended') {
+    const winner = state.players.find(p => p.id === state.winner) || state.players[0];
+    html += `
+      <div class="text-center py-6">
+        <span class="text-6xl mb-4 block">🏆</span>
+        <h2 class="text-xl font-bold mb-4">游戏结束！${winner ? `${winner.avatar} ${escapeHtml(winner.nickname)} 获胜！` : ''}</h2>
+        <div class="space-y-2 mb-6">
+          ${state.players.sort((a, b) => b.points - a.points).map(p => `
+            <div class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              <span>${p.avatar} ${escapeHtml(p.nickname)}</span>
+              <span class="font-bold">${p.points} 分</span>
+            </div>
+          `).join('')}
+        </div>
+        <button onclick="exitGameRoom()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">返回大厅</button>
+      </div>
+    `;
+  } else if (state.phase === 'playing') {
+    // Nobles
+    html += `<div class="flex gap-2 mb-3 overflow-x-auto pb-1">`;
+    html += `<span class="text-xs text-gray-400 self-center mr-1">贵族:</span>`;
+    (state.nobles || []).forEach(noble => {
+      html += `<div class="spl-noble shrink-0">
+        <div class="text-center"><span class="text-lg">👑</span><span class="text-xs font-bold">${noble.points}分</span></div>
+        <div class="text-xs text-gray-500">${Object.entries(noble.requirement).map(([c, n]) => `${GEM_COLORS[c]}${n}`).join(' ')}</div>
+      </div>`;
+    });
+    html += `</div>`;
+
+    // Card table
+    for (const level of ['level3', 'level2', 'level1']) {
+      const cards = state.table[level] || [];
+      const label = level === 'level1' ? 'I' : level === 'level2' ? 'II' : 'III';
+      html += `<div class="mb-2">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="text-xs font-bold text-gray-400">等级 ${label}</span>
+          <span class="text-xs text-gray-300">(${state.decks[level]?.length || 0}张剩余)</span>
+          ${isMyTurn && state.decks[level]?.length > 0 ? `<button onclick="spReserveCard('deck','${level}',0)" class="text-xs text-primary-500 hover:underline">盲抽</button>` : ''}
+        </div>
+        <div class="flex gap-2 overflow-x-auto pb-1">`;
+      cards.forEach((card, idx) => {
+        const costStr = Object.entries(card.cost || {}).map(([c, n]) => `${GEM_COLORS[c]}${n}`).join('');
+        const canBuy = isMyTurn && canAffordCard(card, state.players[myIndex]);
+        html += `<div class="spl-card ${CARD_COLORS[card.color] || ''} shrink-0">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-bold ${card.points > 0 ? 'text-primary-600' : 'text-gray-400'}">${card.points > 0 ? card.points : ''}</span>
+            <span class="text-xs">${GEM_COLORS[card.color]}</span>
+          </div>
+          <div class="text-xs text-gray-500 mb-1">${costStr}</div>
+          ${isMyTurn ? `<div class="flex gap-1"><button onclick="spBuyCard('table','${card.id}')" class="text-xs px-1.5 py-0.5 rounded ${canBuy ? 'bg-primary-600 text-white hover:bg-primary-700' : 'bg-gray-200 dark:bg-gray-600 text-gray-400 cursor-not-allowed'}" ${canBuy ? '' : 'disabled'}>买</button><button onclick="spReserveCard('table','${level}',${idx})" class="text-xs px-1.5 py-0.5 rounded bg-yellow-500 text-white hover:bg-yellow-600">留</button></div>` : ''}
+        </div>`;
+      });
+      html += `</div></div>`;
+    }
+
+    // My reserved cards
+    const me = state.players[myIndex];
+    if (me.reservedCards && me.reservedCards.length > 0) {
+      html += `<div class="mb-3"><span class="text-xs font-bold text-gray-400 mb-1 block">我的预留卡</span><div class="flex gap-2 overflow-x-auto">`;
+      me.reservedCards.forEach(card => {
+        const costStr = Object.entries(card.cost || {}).map(([c, n]) => `${GEM_COLORS[c]}${n}`).join('');
+        const canBuy = isMyTurn && canAffordCard(card, me);
+        html += `<div class="spl-card border-yellow-400 shrink-0">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-bold ${card.points > 0 ? 'text-primary-600' : 'text-gray-400'}">${card.points > 0 ? card.points : ''}</span>
+            <span class="text-xs">${GEM_COLORS[card.color]}</span>
+          </div>
+          <div class="text-xs text-gray-500 mb-1">${costStr}</div>
+          ${isMyTurn && canBuy ? `<button onclick="spBuyCard('reserved','${card.id}')" class="text-xs px-1.5 py-0.5 rounded bg-primary-600 text-white hover:bg-primary-700">购买</button>` : ''}
+        </div>`;
+      });
+      html += `</div></div>`;
+    }
+
+    // Bank + take gems
+    if (isMyTurn) {
+      html += `
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-3 border border-gray-200 dark:border-gray-700 mb-3">
+          <p class="text-xs font-bold text-gray-400 mb-2">银行</p>
+          <div class="flex gap-2 flex-wrap mb-2">
+            ${['white','blue','green','red','black','gold'].map(c => `<span class="spl-gem ${GEM_CSS[c]} text-xs font-bold px-2 py-1 rounded-full">${GEM_COLORS[c]} ${state.bank[c]}</span>`).join('')}
+          </div>
+          <div id="spGemSelector" class="mb-2"></div>
+          <button onclick="spConfirmTakeGems()" class="w-full py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors">拿宝石</button>
+        </div>
+      `;
+    }
+
+    // Players
+    html += `<div class="space-y-2">`;
+    state.players.forEach((p, idx) => {
+      const isMe = p.id === user.id;
+      const isCurrent = idx === state.currentPlayerIndex;
+      html += `
+        <div class="flex items-center gap-3 p-3 rounded-xl border-2 ${isMe ? 'border-primary-300 dark:border-primary-700 bg-primary-50/50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-gray-700'} ${isCurrent ? 'ring-2 ring-yellow-400' : ''}">
+          <div class="flex flex-col items-center gap-1">
+            <span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]}">${p.avatar}</span>
+            <span class="text-xs font-medium truncate max-w-[4rem]">${escapeHtml(p.nickname)}</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="text-lg font-bold">${p.points}分</span>
+              ${p.nobles && p.nobles.length > 0 ? `<span class="text-xs text-yellow-600">👑×${p.nobles.length}</span>` : ''}
+            </div>
+            <div class="flex gap-1 flex-wrap mb-1">
+              ${Object.entries(p.bonuses).filter(([,v]) => v > 0).map(([c, n]) => `<span class="text-xs ${GEM_CSS[c]} px-1.5 py-0.5 rounded-full">${GEM_COLORS[c]}+${n}</span>`).join('')}
+            </div>
+            <div class="flex gap-1 flex-wrap">
+              ${Object.entries(p.gems).filter(([,v]) => v > 0).map(([c, n]) => `<span class="text-xs ${GEM_CSS[c]} px-1.5 py-0.5 rounded-full">${GEM_COLORS[c]}${n}</span>`).join('')}
+            </div>
+          </div>
+          <div class="text-right text-xs text-gray-400">
+            <div>卡牌: ${p.cards.length}</div>
+            <div>预留: ${p.reservedCards ? p.reservedCards.length : p.reserved.length}</div>
+          </div>
+        </div>
+      `;
+    });
+    html += `</div>`;
+  }
+
+  container.innerHTML = html;
+  // Initialize gem selector
+  if (state.phase === 'playing') renderSpGemSelector();
+}
+
+function canAffordCard(card, player) {
+  const colors = ['white', 'blue', 'green', 'red', 'black'];
+  let goldNeeded = 0;
+  for (const c of colors) {
+    const cost = card.cost[c] || 0;
+    const bonus = player.bonuses[c] || 0;
+    const actual = Math.max(0, cost - bonus);
+    if (actual > 0) {
+      if (player.gems[c] >= actual) {
+        // ok
+      } else {
+        goldNeeded += actual - player.gems[c];
+      }
+    }
+  }
+  return goldNeeded <= (player.gems.gold || 0);
 }
 
 // ========== 旅行相册 ==========

@@ -6,6 +6,8 @@ const authRoutes = require('./routes/auth');
 const teamRoutes = require('./routes/teams');
 const expenseRoutes = require('./routes/expenses');
 const gameRoutes = require('./routes/games');
+const codenamesRoutes = require('./routes/codenames');
+const splendorRoutes = require('./routes/splendor');
 const photoRoutes = require('./routes/photos');
 const itineraryRoutes = require('./routes/itinerary');
 
@@ -28,6 +30,8 @@ app.use('/expenses', expenseRoutes);
 
 // Game 路由
 app.use('/games', gameRoutes);
+app.use('/codenames', codenamesRoutes);
+app.use('/splendor', splendorRoutes);
 
 // Photo 路由
 app.use('/photos', photoRoutes);

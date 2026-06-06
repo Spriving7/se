@@ -256,3 +256,67 @@
 .itinerary-date-header {
   @apply text-sm font-bold text-primary-600 dark:text-primary-400 mb-3 mt-4 first:mt-0;
 }
+
+/* ========== 行动代号 ========== */
+.cn-grid {
+  @apply grid grid-cols-5 gap-1.5;
+}
+.cn-card {
+  @apply flex items-center justify-center rounded-lg p-1 min-h-[3.5rem]
+         bg-gray-100 dark:bg-gray-700 border border-gray-200 dark:border-gray-600
+         cursor-default select-none transition-all duration-200;
+}
+.cn-card .cn-word {
+  @apply text-xs font-medium text-center break-all leading-tight;
+}
+.cn-card.cn-red {
+  @apply bg-red-500 dark:bg-red-600 border-red-500;
+}
+.cn-card.cn-red .cn-word {
+  @apply text-white;
+}
+.cn-card.cn-blue {
+  @apply bg-blue-500 dark:bg-blue-600 border-blue-500;
+}
+.cn-card.cn-blue .cn-word {
+  @apply text-white;
+}
+.cn-card.cn-assassin {
+  @apply bg-gray-900 dark:bg-black border-gray-900;
+}
+.cn-card.cn-assassin .cn-word {
+  @apply text-white;
+}
+.cn-card.cn-neutral {
+  @apply bg-amber-100 dark:bg-amber-900/40 border-amber-300 dark:border-amber-700;
+}
+.cn-card.cn-neutral .cn-word {
+  @apply text-gray-800 dark:text-gray-200;
+}
+.cn-card.revealed {
+  @apply opacity-90;
+}
+.cn-card.cn-dimmed {
+  @apply opacity-60;
+}
+.cn-card.cn-guessable {
+  @apply cursor-pointer hover:scale-105 hover:shadow-md hover:border-primary-400;
+}
+.cn-card.cn-guessable:active {
+  @apply scale-95;
+}
+
+/* ========== 璀璨宝石 ========== */
+.spl-card {
+  @apply w-28 shrink-0 rounded-lg p-2 border-2 bg-white dark:bg-gray-800
+         hover:shadow-sm transition-all;
+}
+.spl-noble {
+  @apply rounded-lg p-2 border border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 min-w-[5rem];
+}
+.spl-gem {
+  @apply inline-flex items-center gap-0.5 font-bold rounded-full;
+}
+.spl-gem-btn {
+  @apply transition-all active:scale-95;
+}
