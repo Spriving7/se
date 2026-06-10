@@ -122,6 +122,7 @@ async function initApp() {
 }
 
 // ========== 页面导航 ==========
+function navigateTo(pageName) {
   document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
   const target = document.getElementById('page-' + pageName);
   if (target) target.classList.remove('hidden');
