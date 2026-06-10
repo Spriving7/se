@@ -34,7 +34,6 @@
     }
   </script>
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 
 <body class="bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100 min-h-screen transition-colors duration-300">
@@ -233,48 +232,70 @@
 
     <!-- 首页 -->
     <section id="page-home" class="page">
-      <!-- 欢迎横幅 -->
-      <div class="rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-400 p-6 md:p-8 text-white mb-8">
-        <h1 class="text-2xl md:text-3xl font-bold mb-2">旅途好帮手 ✈️</h1>
-        <p class="text-blue-100 text-sm md:text-base">记账、桌游，一个应用全搞定</p>
-      </div>
+      <!-- 深色科技风 Hero -->
+      <div class="relative -mx-4 -mt-6 px-4 pt-12 pb-16 md:pt-20 md:pb-24 bg-gray-950 overflow-hidden" style="min-height: 75vh;">
+        <!-- 装饰光晕 -->
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-b from-blue-500/20 to-transparent rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute bottom-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute top-1/3 left-0 w-60 h-60 bg-purple-500/8 rounded-full blur-3xl pointer-events-none"></div>
 
-      <!-- 功能卡片 -->
-      <h2 class="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">功能一览</h2>
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div class="relative z-10 max-w-5xl mx-auto flex flex-col items-center text-center">
+          <!-- 渐变大标题 -->
+          <h1 class="text-5xl md:text-7xl font-black mb-5 tracking-tight">
+            <span class="bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-400 bg-clip-text text-transparent">旅途好帮手</span>
+            <span class="ml-2">✈️</span>
+          </h1>
 
-        <button class="feature-card text-center" data-page="teams">
-          <span class="text-4xl block mb-2">👥</span>
-          <h3 class="font-bold">旅游小分队</h3>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
-            创建或加入小分队，一起出发
+          <!-- 一句话 -->
+          <p class="text-gray-400 text-lg md:text-xl mb-10 max-w-lg leading-relaxed">
+            记账 · 桌游 · 相册 · 行程
+            <span class="block mt-1 text-gray-500 text-base">一站式旅行协作平台</span>
           </p>
-        </button>
 
-        <button class="feature-card text-center" data-page="aa">
-          <span class="text-4xl block mb-2">💰</span>
-          <h3 class="font-bold">AA 记账</h3>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
-            记录开销，自动计算还款方案
-          </p>
-        </button>
+          <!-- 登录按钮 -->
+          <div id="homeHeroActions">
+            <button id="heroLoginBtn" onclick="showLoginModal()" class="px-8 py-3.5 rounded-xl font-bold text-base bg-gradient-to-r from-blue-500 to-cyan-400 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200">
+              开始使用
+            </button>
+          </div>
 
-        <button class="feature-card text-center" data-page="game">
-          <span class="text-4xl block mb-2">🎲</span>
-          <h3 class="font-bold">在线桌游</h3>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
-            谁是卧底、行动代号、璀璨宝石
-          </p>
-        </button>
+          <!-- 下拉展开功能 -->
+          <button id="homeFeatureToggle" onclick="toggleHomeFeatures()" class="mt-12 text-gray-500 hover:text-gray-300 transition-colors flex flex-col items-center gap-1 group">
+            <span class="text-sm group-hover:text-gray-400 transition-colors">探索功能</span>
+            <svg id="homeFeatureArrow" class="w-5 h-5 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+        </div>
 
-        <button class="feature-card text-center" data-page="teams" onclick="navigateToAlbum()">
-          <span class="text-4xl block mb-2">📸</span>
-          <h3 class="font-bold">旅行相册</h3>
-          <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 hidden sm:block">
-            共享旅行照片，记录精彩瞬间
-          </p>
-        </button>
+        <!-- 可展开功能区 -->
+        <div id="homeFeaturesPanel" class="max-h-0 overflow-hidden transition-all duration-500 ease-in-out relative z-10">
+          <div class="max-w-5xl mx-auto pt-8 pb-4">
+            <!-- 渐变分割线 -->
+            <div class="h-px bg-gradient-to-r from-transparent via-blue-500/40 to-transparent mb-10"></div>
 
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <button class="home-glass-card" data-page="teams">
+                <div class="text-3xl mb-3">👥</div>
+                <h3 class="font-bold text-base text-gray-100">旅游小分队</h3>
+                <p class="text-xs text-gray-500 mt-1.5 leading-relaxed">邀请码快速组队</p>
+              </button>
+              <button class="home-glass-card" data-page="aa">
+                <div class="text-3xl mb-3">💰</div>
+                <h3 class="font-bold text-base text-gray-100">AA 记账</h3>
+                <p class="text-xs text-gray-500 mt-1.5 leading-relaxed">自动最优还款方案</p>
+              </button>
+              <button class="home-glass-card" data-page="game">
+                <div class="text-3xl mb-3">🎲</div>
+                <h3 class="font-bold text-base text-gray-100">在线桌游</h3>
+                <p class="text-xs text-gray-500 mt-1.5 leading-relaxed">谁是卧底 · 璀璨宝石</p>
+              </button>
+              <button class="home-glass-card" data-page="teams" onclick="navigateToAlbum()">
+                <div class="text-3xl mb-3">📸</div>
+                <h3 class="font-bold text-base text-gray-100">旅行相册</h3>
+                <p class="text-xs text-gray-500 mt-1.5 leading-relaxed">共享精彩瞬间</p>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -702,16 +723,6 @@
           <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">备注</label>
           <textarea id="itiDesc" rows="2" placeholder="补充说明…" maxlength="100" class="form-input resize-none"></textarea>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">地点</label>
-          <div class="flex gap-2">
-            <input id="itiLocation" type="text" placeholder="例：三亚天涯海角" maxlength="80" class="form-input flex-1">
-            <button type="button" onclick="geocodeLocation()" class="px-3 py-2.5 rounded-lg bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 text-sm font-medium hover:bg-primary-100 dark:hover:bg-primary-900/50 transition-colors whitespace-nowrap">定位</button>
-          </div>
-          <input id="itiLat" type="hidden">
-          <input id="itiLng" type="hidden">
-          <p id="itiGeoStatus" class="text-xs text-gray-400 mt-1"></p>
-        </div>
       </div>
       <div class="flex gap-3 mt-6">
         <button onclick="closeItineraryModal()" class="flex-1 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">取消</button>
@@ -764,7 +775,6 @@
   <!-- 底部安全间距（为移动端 tab 栏留空） -->
   <div class="h-16 md:h-0"></div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

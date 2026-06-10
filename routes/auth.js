@@ -1,5 +1,5 @@
 const express = require('express');
-const { upsertUser, createSession, deleteSession, findUserById } = require('../data/users');
+const { upsertUser, createSession, deleteSession, findUserById, findUserByNickname } = require('../data/users');
 
 const router = express.Router();
 
@@ -10,20 +10,26 @@ router.get('/me', requireAuth, (req, res) => {
   res.json({ id, nickname, avatar });
 });
 
-// POST /auth/login — 登录
+// POST /auth/login — 登录（相同昵称复用已有账号）
 router.post('/login', (req, res) => {
   const { nickname, avatar } = req.body;
   if (!nickname || !avatar) {
     return res.status(400).json({ error: '昵称和头像不能为空' });
   }
 
-  const user = {
-    id: 'u_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
-    nickname,
-    avatar,
-    loginTime: Date.now(),
-  };
-  upsertUser(user);
+  let user = findUserByNickname(nickname);
+  if (user) {
+    user.avatar = avatar;
+    upsertUser(user);
+  } else {
+    user = {
+      id: 'u_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+      nickname,
+      avatar,
+      loginTime: Date.now(),
+    };
+    upsertUser(user);
+  }
 
   const token = createSession(user.id);
   res.cookie('session_token', token, {

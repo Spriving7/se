@@ -41,9 +41,6 @@ function addItem(teamId, creatorId, creatorNickname, data) {
     title: data.title,
     description: data.description || '',
     type: data.type || 'activity',
-    latitude: data.latitude || '',
-    longitude: data.longitude || '',
-    location: data.location || '',
     createdAt: Date.now(),
   };
 
@@ -59,7 +56,7 @@ function updateItem(itemId, userId, data) {
   if (idx < 0) return null;
   if (items[idx].creatorId !== userId) return null;
 
-  const allowed = ['date', 'time', 'title', 'description', 'type', 'latitude', 'longitude', 'location'];
+  const allowed = ['date', 'time', 'title', 'description', 'type'];
   allowed.forEach(key => {
     if (data[key] !== undefined) items[idx][key] = data[key];
   });

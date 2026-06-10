@@ -22,7 +22,16 @@
          border border-gray-200 dark:border-gray-700
          hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-600
          hover:-translate-y-0.5 active:scale-[0.98]
-         transition-all duration-200 text-center;
+         transition-all duration-200 text-left;
+}
+
+/* ========== 首页毛玻璃卡片 ========== */
+.home-glass-card {
+  @apply w-full p-6 rounded-xl text-center cursor-pointer
+         bg-white/5 border border-white/10 backdrop-blur-sm
+         hover:bg-white/10 hover:border-blue-400/30
+         hover:-translate-y-0.5 active:scale-[0.98]
+         transition-all duration-200;
 }
 
 /* ========== 占位卡片 ========== */
@@ -133,7 +142,7 @@
 /* ========== 成员头像 ========== */
 .member-avatar {
   @apply w-10 h-10 rounded-full flex items-center justify-center text-xl
-         border-2 border-white dark:border-gray-800;
+         border-2 border-white dark:border-gray-800 overflow-hidden;
 }
 
 /* ========== 费用卡片 ========== */
@@ -290,13 +299,6 @@
 }
 .itinerary-date-header {
   @apply text-sm font-bold text-primary-600 dark:text-primary-400 mb-3 mt-4 first:mt-0;
-}
-
-/* ========== 旅行地图 ========== */
-#itineraryMap {
-  height: 400px;
-  width: 100%;
-  background: #f0f0f0;
 }
 
 /* ========== 行动代号 ========== */

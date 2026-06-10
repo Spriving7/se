@@ -24,6 +24,10 @@ function findUserById(id) {
   return readUsers().find(u => u.id === id) || null;
 }
 
+function findUserByNickname(nickname) {
+  return readUsers().find(u => u.nickname === nickname) || null;
+}
+
 function upsertUser(userData) {
   const users = readUsers();
   const existing = users.find(u => u.id === userData.id);
@@ -62,6 +66,7 @@ function deleteSession(token) {
 
 module.exports = {
   findUserById,
+  findUserByNickname,
   upsertUser,
   createSession,
   getSession,

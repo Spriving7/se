@@ -122,7 +122,6 @@ async function initApp() {
 }
 
 // ========== 页面导航 ==========
-function navigateTo(pageName) {
   document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
   const target = document.getElementById('page-' + pageName);
   if (target) target.classList.remove('hidden');
@@ -144,6 +143,38 @@ function navigateTo(pageName) {
   if (pageName === 'aa') renderAAPage();
   if (pageName === 'game') renderGamePage();
   if (pageName === 'profile') renderProfilePage();
+  if (pageName === 'home') updateHomeHero();
+}
+
+// ========== 首页 Hero ==========
+function updateHomeHero() {
+  const actions = document.getElementById('homeHeroActions');
+  const user = getUser();
+  if (user) {
+    actions.innerHTML = `
+      <div class="flex items-center gap-3">
+        <span class="text-gray-400 text-sm">${avatarHtml(user.avatar)} ${escapeHtml(user.nickname)}</span>
+        <button onclick="navigateTo('teams')" class="px-8 py-3.5 rounded-xl font-bold text-base bg-gradient-to-r from-blue-500 to-cyan-400 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200">进入小分队 →</button>
+      </div>`;
+  } else {
+    actions.innerHTML = `
+      <button onclick="showLoginModal()" class="px-8 py-3.5 rounded-xl font-bold text-base bg-gradient-to-r from-blue-500 to-cyan-400 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200">开始使用</button>`;
+  }
+}
+
+function toggleHomeFeatures() {
+  const panel = document.getElementById('homeFeaturesPanel');
+  const arrow = document.getElementById('homeFeatureArrow');
+  const toggle = document.getElementById('homeFeatureToggle');
+  if (panel.style.maxHeight && panel.style.maxHeight !== '0px') {
+    panel.style.maxHeight = '0px';
+    arrow.style.transform = 'rotate(0deg)';
+    toggle.querySelector('span').textContent = '探索功能';
+  } else {
+    panel.style.maxHeight = panel.scrollHeight + 'px';
+    arrow.style.transform = 'rotate(180deg)';
+    toggle.querySelector('span').textContent = '收起';
+  }
 }
 
 // ========== 移动端菜单 ==========
@@ -151,10 +182,41 @@ function toggleMobileMenu() {
   document.getElementById('mobileMenu').classList.toggle('hidden');
 }
 
+// ========== 头像工具 ==========
+function avatarHtml(avatar) {
+  if (!avatar) return '👤';
+  if (avatar.startsWith('data:')) {
+    return `<img src="${avatar}" class="w-full h-full object-cover rounded-full" alt="">`;
+  }
+  return avatar;
+}
+
+function resizeAvatarImage(file, callback) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const size = 128;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const scale = Math.max(size / img.width, size / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+      callback(canvas.toDataURL('image/jpeg', 0.7));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 // ========== 头像选择器 ==========
 function renderAvatarPicker(containerId, selectedAvatar, onSelect) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
+
   AVATARS.forEach(emoji => {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -167,6 +229,29 @@ function renderAvatarPicker(containerId, selectedAvatar, onSelect) {
     });
     container.appendChild(btn);
   });
+
+  // 上传照片按钮
+  const uploadBtn = document.createElement('button');
+  uploadBtn.type = 'button';
+  uploadBtn.className = 'avatar-option' + (selectedAvatar && selectedAvatar.startsWith('data:') ? ' selected' : '');
+  uploadBtn.innerHTML = '📷';
+  uploadBtn.title = '从相册选择';
+  uploadBtn.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = (ev) => {
+      const f = ev.target.files[0];
+      if (!f) return;
+      resizeAvatarImage(f, (dataUrl) => {
+        container.querySelectorAll('.avatar-option').forEach(b => b.classList.remove('selected'));
+        uploadBtn.classList.add('selected');
+        if (onSelect) onSelect(dataUrl);
+      });
+    };
+    input.click();
+  });
+  container.appendChild(uploadBtn);
 }
 
 // ========== 用户状态更新 ==========
@@ -175,7 +260,7 @@ function updateUIForUserState() {
   const avatarBtn = document.getElementById('userAvatarBtn');
 
   if (user) {
-    avatarBtn.innerHTML = `<span class="text-xl">${user.avatar}</span>`;
+    avatarBtn.innerHTML = `<span class="text-xl">${avatarHtml(user.avatar)}</span>`;
     avatarBtn.onclick = () => navigateTo('profile');
   } else {
     avatarBtn.innerHTML = '<span class="text-xl">👤</span>';
@@ -219,6 +304,7 @@ async function handleLogin() {
       setUser(user);
       hideLoginModal();
       updateUIForUserState();
+      updateHomeHero();
       showToast('登录成功！', 'success');
     } else {
       const data = await res.json();
@@ -235,6 +321,7 @@ async function handleLogin() {
     setUser(user);
     hideLoginModal();
     updateUIForUserState();
+    updateHomeHero();
     showToast('登录成功！（离线模式）', 'success');
   }
 }
@@ -248,6 +335,7 @@ async function logout() {
   clearUser();
   cachedTeams = [];
   updateUIForUserState();
+  updateHomeHero();
   navigateTo('home');
   showToast('已退出登录', 'info');
 }
@@ -268,7 +356,7 @@ function renderProfilePage() {
   content.classList.remove('hidden');
 
   const profileAvatar = document.getElementById('profileAvatar');
-  profileAvatar.textContent = user.avatar;
+  profileAvatar.innerHTML = avatarHtml(user.avatar);
   document.getElementById('profileNickname').textContent = user.nickname;
 }
 
@@ -361,7 +449,7 @@ async function renderTeamsList() {
   listEl.innerHTML = teams.map(team => {
     const isCreator = team.creatorId === user.id;
     const memberAvatars = team.members.slice(0, 5).map(m =>
-      `<span class="member-avatar ${AVATAR_COLORS[m.id.charCodeAt(0) % AVATAR_COLORS.length]}" title="${escapeHtml(m.nickname)}">${m.avatar}</span>`
+      `<span class="member-avatar ${AVATAR_COLORS[m.id.charCodeAt(0) % AVATAR_COLORS.length]}" title="${escapeHtml(m.nickname)}">${avatarHtml(m.avatar)}</span>`
     ).join('');
     const extraCount = team.members.length > 5 ? `<span class="member-avatar bg-gray-100 dark:bg-gray-600 text-xs text-gray-500">+${team.members.length - 5}</span>` : '';
 
@@ -564,7 +652,7 @@ async function showTeamDetail(teamId) {
             const isTeamCreator = m.id === team.creatorId;
             return `
               <div class="flex items-center gap-3 px-5 py-3">
-                <span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[m.id.charCodeAt(0) % AVATAR_COLORS.length]}">${m.avatar}</span>
+                <span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[m.id.charCodeAt(0) % AVATAR_COLORS.length]}">${avatarHtml(m.avatar)}</span>
                 <div class="flex-1 min-w-0">
                   <p class="font-medium truncate">${escapeHtml(m.nickname)}${m.id === (user && user.id) ? ' <span class="text-xs text-gray-400">(我)</span>' : ''}</p>
                   <p class="text-xs text-gray-400 dark:text-gray-500">${isTeamCreator ? '队长' : '队员'} · ${new Date(m.joinedAt).toLocaleDateString()}</p>
@@ -923,7 +1011,7 @@ function renderAAExpenseList() {
               <span class="text-base font-bold text-primary-600 dark:text-primary-400 shrink-0 ml-2">¥${exp.amount.toFixed(2)}</span>
             </div>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              ${payer ? payer.avatar + ' ' + escapeHtml(payer.nickname) : '未知'} 付款 · 均摊 ${exp.splitAmong.length} 人
+              ${payer ? (payer.avatar.startsWith('data:') ? '🖼️' : payer.avatar) + ' ' + escapeHtml(payer.nickname) : '未知'} 付款 · 均摊 ${exp.splitAmong.length} 人
             </p>
             <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">每人 ¥${(exp.splits[exp.splitAmong[0]] || 0).toFixed(2)}</p>
           </div>
@@ -973,10 +1061,10 @@ function renderAASettlement() {
       <div class="settle-card mb-3 ${t.settled ? 'done' : ''}">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="text-lg">${from ? from.avatar : '?'}</span>
+            <span class="text-lg">${from ? avatarHtml(from.avatar) : '?'}</span>
             <span class="text-sm font-medium">${from ? escapeHtml(from.nickname) : '?'}</span>
             <span class="text-gray-400 text-xs">→</span>
-            <span class="text-lg">${to ? to.avatar : '?'}</span>
+            <span class="text-lg">${to ? avatarHtml(to.avatar) : '?'}</span>
             <span class="text-sm font-medium">${to ? escapeHtml(to.nickname) : '?'}</span>
           </div>
           <span class="font-bold text-red-500">¥${t.amount.toFixed(2)}</span>
@@ -1014,7 +1102,7 @@ function showExpenseModal(expenseId) {
   // 填充付款人下拉
   const payerSelect = document.getElementById('expensePayer');
   payerSelect.innerHTML = members.map(m =>
-    `<option value="${m.id}">${m.avatar} ${escapeHtml(m.nickname)}</option>`
+    `<option value="${m.id}">${m.avatar.startsWith('data:') ? '🖼️' : m.avatar} ${escapeHtml(m.nickname)}</option>`
   ).join('');
 
   // 填充分摊人 checkbox
@@ -1022,7 +1110,7 @@ function showExpenseModal(expenseId) {
   splitDiv.innerHTML = members.map(m =>
     `<label class="member-check" data-uid="${m.id}" onclick="toggleSplitMember(this)">
        <input type="checkbox" class="hidden" checked>
-       <span class="text-lg">${m.avatar}</span>
+       <span class="text-lg">${avatarHtml(m.avatar)}</span>
        <span class="text-sm">${escapeHtml(m.nickname)}</span>
      </label>`
   ).join('');
@@ -1161,9 +1249,9 @@ function showSettleConfirm(fromUid, toUid, amount) {
 
   document.getElementById('settleConfirmBody').innerHTML = `
     <div class="flex items-center justify-center gap-3 mb-3">
-      <span class="text-3xl">${from ? from.avatar : '?'}</span>
+      <span class="text-3xl">${from ? avatarHtml(from.avatar) : '?'}</span>
       <span class="text-gray-400 text-xl">→</span>
-      <span class="text-3xl">${to ? to.avatar : '?'}</span>
+      <span class="text-3xl">${to ? avatarHtml(to.avatar) : '?'}</span>
     </div>
     <p class="text-lg font-bold">¥${amount.toFixed(2)}</p>
     <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
@@ -1351,7 +1439,7 @@ function renderActiveGames(games) {
         </div>
         <div class="flex items-center gap-2 mb-3">
           <div class="flex -space-x-1">
-            ${players.slice(0, 5).map(p => `<span class="w-8 h-8 rounded-full flex items-center justify-center text-sm ${AVATAR_COLORS[(p.id || '').charCodeAt(0) % AVATAR_COLORS.length]} border-2 border-white dark:border-gray-800">${p.avatar}</span>`).join('')}
+            ${players.slice(0, 5).map(p => `<span class="w-8 h-8 rounded-full flex items-center justify-center text-sm ${AVATAR_COLORS[(p.id || '').charCodeAt(0) % AVATAR_COLORS.length]} border-2 border-white dark:border-gray-800">${avatarHtml(p.avatar)}</span>`).join('')}
           </div>
           <span class="text-sm text-gray-500">${players.length}人</span>
         </div>
@@ -1463,7 +1551,7 @@ function renderGameState(state) {
     <div class="grid grid-cols-4 gap-2 mb-6">
       ${state.players.map(p => `
         <div class="game-player ${p.alive ? 'alive' : 'eliminated'} ${p.id === user.id ? 'is-me' : ''} relative">
-          <span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]}">${p.avatar}</span>
+          <span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]}">${avatarHtml(p.avatar)}</span>
           <span class="text-xs font-medium truncate w-full text-center">${escapeHtml(p.nickname)}</span>
           ${p.id === state.hostId ? '<span class="absolute -top-1 -right-1 text-xs">👑</span>' : ''}
           ${!p.alive ? '<span class="absolute inset-0 flex items-center justify-center text-2xl">✕</span>' : ''}
@@ -1479,7 +1567,7 @@ function renderGameState(state) {
         <p class="text-gray-500 dark:text-gray-400 text-lg font-medium">等待玩家加入</p>
         <p class="text-gray-400 dark:text-gray-500 text-sm mt-1 mb-4">${state.players.length} 人已就绪（至少3人）</p>
         <div class="flex -space-x-2 justify-center mb-4">
-          ${state.players.map(p => `<span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]} border-2 border-white dark:border-gray-800">${p.avatar}</span>`).join('')}
+          ${state.players.map(p => `<span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]} border-2 border-white dark:border-gray-800">${avatarHtml(p.avatar)}</span>`).join('')}
         </div>
         <div class="flex gap-3 justify-center">
           ${state.isHost ? `<button onclick="startExistingGame()" class="px-8 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors ${state.players.length < 3 ? 'opacity-50 cursor-not-allowed' : ''}" ${state.players.length < 3 ? 'disabled' : ''}>开始游戏</button>` : '<p class="text-sm text-gray-400">等待房主开始游戏…</p>'}
@@ -1492,13 +1580,13 @@ function renderGameState(state) {
   if (state.phase === 'describing') {
     const descriptions = Object.entries(state.descriptions).map(([uid, text]) => {
       const p = state.players.find(pl => pl.id === uid);
-      return p ? `<div class="game-desc-bubble"><span class="text-sm font-medium">${p.avatar} ${escapeHtml(p.nickname)}：</span><span class="text-sm text-gray-600 dark:text-gray-300">${escapeHtml(text)}</span></div>` : '';
+      return p ? `<div class="game-desc-bubble"><span class="text-sm font-medium">${p.avatar.startsWith('data:') ? '🖼️' : p.avatar} ${escapeHtml(p.nickname)}：</span><span class="text-sm text-gray-600 dark:text-gray-300">${escapeHtml(text)}</span></div>` : '';
     }).join('');
 
     html += `
       <div class="mb-4">
         <h3 class="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">
-          ${state.currentDescriber ? `轮到 ${state.currentDescriber.avatar} ${escapeHtml(state.currentDescriber.nickname)} 描述` : '描述阶段'}
+          ${state.currentDescriber ? `轮到 ${state.currentDescriber.avatar.startsWith('data:') ? '🖼️' : state.currentDescriber.avatar} ${escapeHtml(state.currentDescriber.nickname)} 描述` : '描述阶段'}
         </h3>
         ${descriptions}
       </div>
@@ -1521,7 +1609,7 @@ function renderGameState(state) {
         <div class="space-y-2">
           ${alive.filter(p => p.id !== user.id).map(p => `
             <button class="game-vote-btn" onclick="submitVote('${p.id}')">
-              <span class="w-8 h-8 rounded-full flex items-center justify-center text-lg ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]}">${p.avatar}</span>
+              <span class="w-8 h-8 rounded-full flex items-center justify-center text-lg ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]}">${avatarHtml(p.avatar)}</span>
               <span class="font-medium">${escapeHtml(p.nickname)}</span>
             </button>
           `).join('')}
@@ -1536,7 +1624,7 @@ function renderGameState(state) {
     html += `
       <div class="text-center py-6">
         <span class="text-5xl mb-3 block">${isSpy ? '🎉' : '💀'}</span>
-        <h3 class="text-lg font-bold mb-1">${eliminated ? `${eliminated.avatar} ${escapeHtml(eliminated.nickname)} 被淘汰` : '淘汰结果'}</h3>
+        <h3 class="text-lg font-bold mb-1">${eliminated ? `${eliminated.avatar.startsWith('data:') ? '🖼️' : eliminated.avatar} ${escapeHtml(eliminated.nickname)} 被淘汰` : '淘汰结果'}</h3>
         <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">${isSpy ? '淘汰的是卧底！好人阵营得分！' : '淘汰的是平民…卧底还在潜伏！'}</p>
         ${state.isHost ? `<button onclick="goNextRound()" class="px-6 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors">下一轮</button>` : '<p class="text-sm text-gray-400">等待房主开启下一轮…</p>'}
       </div>
@@ -1561,7 +1649,7 @@ function renderGameState(state) {
         <h2 class="text-xl font-bold mb-2">${isWin ? '好人阵营胜利！' : '卧底胜利！'}</h2>
         <div class="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700 mb-4 inline-block">
           <p class="text-sm text-gray-500 dark:text-gray-400">卧底是</p>
-          <p class="text-lg font-bold mt-1">${spy ? `${spy.avatar} ${escapeHtml(spy.nickname)}` : '未知'}</p>
+          <p class="text-lg font-bold mt-1">${spy ? `${spy.avatar.startsWith('data:') ? '🖼️' : spy.avatar} ${escapeHtml(spy.nickname)}` : '未知'}</p>
           <p class="text-sm mt-2">
             <span class="text-gray-500">平民词：</span><span class="font-medium">${escapeHtml(state.civilianWord || '')}</span>
             <span class="mx-2">|</span>
@@ -1760,7 +1848,7 @@ function renderCodenamesState(state) {
         <div class="cn-team-panel rounded-xl p-4 border-2 ${myTeam === 'red' ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-700'}">
           <h3 class="font-bold text-red-600 dark:text-red-400 mb-2">🔴 红队 (${redPlayers.length}人)</h3>
           <div class="space-y-1 mb-3">
-            ${redPlayers.map(p => `<div class="text-sm flex items-center gap-1"><span>${p.avatar}</span><span>${escapeHtml(p.nickname)}</span>${state.redTeam.spymaster === p.id ? '<span class="text-xs bg-red-200 dark:bg-red-800 px-1 rounded">队长</span>' : ''}</div>`).join('')}
+            ${redPlayers.map(p => `<div class="text-sm flex items-center gap-1"><span>${avatarHtml(p.avatar)}</span><span>${escapeHtml(p.nickname)}</span>${state.redTeam.spymaster === p.id ? '<span class="text-xs bg-red-200 dark:bg-red-800 px-1 rounded">队长</span>' : ''}</div>`).join('')}
           </div>
           ${myTeam !== 'red' ? `<button onclick="cnSetRole('red','operative')" class="w-full py-1.5 rounded-lg border border-red-400 text-red-500 text-xs hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors">加入红队</button>` : ''}
         </div>
@@ -1768,7 +1856,7 @@ function renderCodenamesState(state) {
         <div class="cn-team-panel rounded-xl p-4 border-2 ${myTeam === 'blue' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-700'}">
           <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-2">🔵 蓝队 (${bluePlayers.length}人)</h3>
           <div class="space-y-1 mb-3">
-            ${bluePlayers.map(p => `<div class="text-sm flex items-center gap-1"><span>${p.avatar}</span><span>${escapeHtml(p.nickname)}</span>${state.blueTeam.spymaster === p.id ? '<span class="text-xs bg-blue-200 dark:bg-blue-800 px-1 rounded">队长</span>' : ''}</div>`).join('')}
+            ${bluePlayers.map(p => `<div class="text-sm flex items-center gap-1"><span>${avatarHtml(p.avatar)}</span><span>${escapeHtml(p.nickname)}</span>${state.blueTeam.spymaster === p.id ? '<span class="text-xs bg-blue-200 dark:bg-blue-800 px-1 rounded">队长</span>' : ''}</div>`).join('')}
           </div>
           ${myTeam !== 'blue' ? `<button onclick="cnSetRole('blue','operative')" class="w-full py-1.5 rounded-lg border border-blue-400 text-blue-500 text-xs hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">加入蓝队</button>` : ''}
         </div>
@@ -2018,7 +2106,7 @@ function renderSplendorState(state) {
         <p class="text-gray-500 dark:text-gray-400 text-lg font-medium">等待玩家加入</p>
         <p class="text-gray-400 dark:text-gray-500 text-sm mt-1 mb-4">${state.players.length} 人已就绪（2-4人）</p>
         <div class="flex -space-x-2 justify-center mb-4">
-          ${state.players.map(p => `<span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]} border-2 border-white dark:border-gray-800">${p.avatar}</span>`).join('')}
+          ${state.players.map(p => `<span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]} border-2 border-white dark:border-gray-800">${avatarHtml(p.avatar)}</span>`).join('')}
         </div>
         <div class="flex gap-3 justify-center">
           ${state.isHost ? `<button onclick="spStartGame()" class="px-8 py-2.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-medium transition-colors ${state.players.length < 2 ? 'opacity-50 cursor-not-allowed' : ''}" ${state.players.length < 2 ? 'disabled' : ''}>开始游戏</button>` : '<p class="text-sm text-gray-400">等待房主开始游戏…</p>'}
@@ -2040,11 +2128,11 @@ function renderSplendorState(state) {
     html += `
       <div class="text-center py-6">
         <span class="text-6xl mb-4 block">🏆</span>
-        <h2 class="text-xl font-bold mb-4">游戏结束！${winner ? `${winner.avatar} ${escapeHtml(winner.nickname)} 获胜！` : ''}</h2>
+        <h2 class="text-xl font-bold mb-4">游戏结束！${winner ? `${winner.avatar.startsWith('data:') ? '🖼️' : winner.avatar} ${escapeHtml(winner.nickname)} 获胜！` : ''}</h2>
         <div class="space-y-2 mb-6">
           ${state.players.sort((a, b) => b.points - a.points).map(p => `
             <div class="flex items-center justify-between px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <span>${p.avatar} ${escapeHtml(p.nickname)}</span>
+              <span>${p.avatar.startsWith('data:') ? '🖼️' : p.avatar} ${escapeHtml(p.nickname)}</span>
               <span class="font-bold">${p.points} 分</span>
             </div>
           `).join('')}
@@ -2143,7 +2231,7 @@ function renderSplendorState(state) {
       html += `
         <div class="flex items-center gap-3 p-3 rounded-xl border-2 ${isMe ? 'border-primary-300 dark:border-primary-700 bg-primary-50/50 dark:bg-primary-900/20' : 'border-gray-200 dark:border-gray-700'} ${isCurrent ? 'ring-2 ring-yellow-400' : ''}">
           <div class="flex flex-col items-center gap-1">
-            <span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]}">${p.avatar}</span>
+            <span class="w-10 h-10 rounded-full flex items-center justify-center text-xl ${AVATAR_COLORS[p.id.charCodeAt(0) % AVATAR_COLORS.length]}">${avatarHtml(p.avatar)}</span>
             <span class="text-xs font-medium truncate max-w-[4rem]">${escapeHtml(p.nickname)}</span>
           </div>
           <div class="flex-1 min-w-0">
@@ -2330,22 +2418,16 @@ function closeLightbox() {
 
 let itineraryDetailTeamId = null;
 let editingItiId = null;
-let itiMapView = false; // false=list, true=map
-let itiMapInstance = null;
 
 function renderTeamItinerary() {
   return `
     <div class="flex items-center justify-between mb-4">
       <h3 class="font-semibold text-gray-700 dark:text-gray-300">行程安排</h3>
-      <div class="flex items-center gap-2">
-        <button onclick="toggleItineraryView()" id="itiViewToggle" class="px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">🗺️ 地图</button>
-        <button onclick="showItineraryModal()" class="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors">+ 添加行程</button>
-      </div>
+      <button onclick="showItineraryModal()" class="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors">+ 添加行程</button>
     </div>
     <div id="itineraryList">
       <div class="text-center py-8 text-gray-400"><p>加载中…</p></div>
     </div>
-    <div id="itineraryMap" class="hidden rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700"></div>
   `;
 }
 
@@ -2356,98 +2438,7 @@ async function loadTeamItinerary(teamId) {
     if (!res.ok) return;
     const items = await res.json();
     renderItineraryList(items);
-    if (itiMapView) renderItineraryMap(items);
   } catch { /* ignore */ }
-}
-
-function toggleItineraryView() {
-  itiMapView = !itiMapView;
-  const listEl = document.getElementById('itineraryList');
-  const mapEl = document.getElementById('itineraryMap');
-  const toggleBtn = document.getElementById('itiViewToggle');
-  if (itiMapView) {
-    listEl.classList.add('hidden');
-    mapEl.classList.remove('hidden');
-    toggleBtn.textContent = '📋 列表';
-    loadTeamItinerary(itineraryDetailTeamId);
-  } else {
-    listEl.classList.remove('hidden');
-    mapEl.classList.add('hidden');
-    toggleBtn.textContent = '🗺️ 地图';
-  }
-}
-
-function initItineraryMap() {
-  if (itiMapInstance) return itiMapInstance;
-  const mapEl = document.getElementById('itineraryMap');
-  if (!mapEl) return null;
-  itiMapInstance = L.map(mapEl).setView([35.86, 104.19], 4);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap',
-    maxZoom: 18,
-  }).addTo(itiMapInstance);
-  return itiMapInstance;
-}
-
-function renderItineraryMap(items) {
-  const map = initItineraryMap();
-  if (!map) return;
-  setTimeout(() => map.invalidateSize(), 100);
-
-  // 清除旧图层
-  map.eachLayer((layer) => {
-    if (layer instanceof L.Marker || layer instanceof L.Polyline) map.removeLayer(layer);
-  });
-
-  const geoItems = items.filter((i) => i.latitude && i.longitude);
-  if (geoItems.length === 0) {
-    map.setView([35.86, 104.19], 4);
-    return;
-  }
-
-  const markers = [];
-  geoItems.forEach((item) => {
-    const lat = parseFloat(item.latitude);
-    const lng = parseFloat(item.longitude);
-    const marker = L.marker([lat, lng]).addTo(map);
-    marker.bindPopup(`
-      <div style="min-width:150px">
-        <strong>${escapeHtml(item.title)}</strong><br>
-        <span style="font-size:12px;color:#666">${item.date}${item.time ? ' ' + item.time : ''}</span>
-        ${item.location ? '<br><span style="font-size:12px;color:#888">📍 ' + escapeHtml(item.location) + '</span>' : ''}
-        ${item.description ? '<br><span style="font-size:12px;color:#888">' + escapeHtml(item.description) + '</span>' : ''}
-      </div>
-    `);
-    markers.push([lat, lng]);
-  });
-
-  // 按日期顺序连线
-  if (markers.length > 1) {
-    L.polyline(markers, { color: '#2563eb', weight: 3, opacity: 0.7, dashArray: '8,8' }).addTo(map);
-  }
-
-  map.fitBounds(L.latLngBounds(markers).pad(0.2));
-}
-
-async function geocodeLocation() {
-  const locationText = document.getElementById('itiLocation').value.trim();
-  const statusEl = document.getElementById('itiGeoStatus');
-  if (!locationText) { statusEl.textContent = '请先输入地点'; return; }
-
-  statusEl.textContent = '正在定位…';
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locationText)}&format=json&limit=1`);
-    const data = await res.json();
-    if (data.length > 0) {
-      document.getElementById('itiLat').value = data[0].lat;
-      document.getElementById('itiLng').value = data[0].lon;
-      statusEl.textContent = `已定位: ${data[0].display_name.split(',').slice(0, 2).join(',')}`;
-    } else {
-      statusEl.textContent = '未找到该地点，请尝试更具体的描述';
-    }
-  } catch {
-    statusEl.textContent = '定位失败，请检查网络';
-  }
 }
 
 function renderItineraryList(items) {
@@ -2490,7 +2481,6 @@ function renderItineraryList(items) {
                 ` : ''}
               </div>
               ${item.description ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">${escapeHtml(item.description)}</p>` : ''}
-              ${item.location ? `<p class="text-xs text-primary-500 mt-0.5">📍 ${escapeHtml(item.location)}</p>` : ''}
               <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">${item.creatorNickname}</p>
             </div>
           </div>
@@ -2513,10 +2503,6 @@ function showItineraryModal(item) {
     document.getElementById('itiTitle').value = item.title;
     document.getElementById('itiType').value = item.type;
     document.getElementById('itiDesc').value = item.description || '';
-    document.getElementById('itiLocation').value = item.location || '';
-    document.getElementById('itiLat').value = item.latitude || '';
-    document.getElementById('itiLng').value = item.longitude || '';
-    document.getElementById('itiGeoStatus').textContent = item.location ? '已保存的地点' : '';
   } else {
     title.textContent = '添加行程';
     deleteBtn.classList.add('hidden');
@@ -2525,10 +2511,6 @@ function showItineraryModal(item) {
     document.getElementById('itiTitle').value = '';
     document.getElementById('itiType').value = 'activity';
     document.getElementById('itiDesc').value = '';
-    document.getElementById('itiLocation').value = '';
-    document.getElementById('itiLat').value = '';
-    document.getElementById('itiLng').value = '';
-    document.getElementById('itiGeoStatus').textContent = '';
   }
 
   document.getElementById('itineraryModal').classList.remove('hidden');
@@ -2548,11 +2530,7 @@ async function saveItineraryItem() {
 
   if (!date || !title) { showToast('请填写日期和标题', 'error'); return; }
 
-  const body = { teamId: itineraryDetailTeamId, date, time, title, type, description,
-    location: document.getElementById('itiLocation').value.trim(),
-    latitude: document.getElementById('itiLat').value,
-    longitude: document.getElementById('itiLng').value,
-  };
+  const body = { teamId: itineraryDetailTeamId, date, time, title, type, description };
 
   try {
     let res;

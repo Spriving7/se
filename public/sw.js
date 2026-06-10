@@ -1,4 +1,4 @@
-const CACHE_NAME = 'travel-v2';
+const CACHE_NAME = 'travel-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
