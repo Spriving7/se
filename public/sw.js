@@ -1,4 +1,4 @@
-const CACHE_NAME = 'travel-v4';
+const CACHE_NAME = 'travel-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -17,7 +17,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// 激活：清理旧缓存
+// 激活：清理旧缓存 + 立即接管
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -31,7 +31,10 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
-  // API 请求 → Network-first
+  // 只处理 GET 请求
+  if (request.method !== 'GET') return;
+
+  // API / 认证请求 → Network-first
   if (request.url.includes('/api/') || request.url.includes('/auth/')) {
     event.respondWith(
       fetch(request)
@@ -45,7 +48,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 静态资源 → Cache-first
+  // HTML / JS / CSS → Network-first（确保用户拿到最新版本，离线时才回退缓存）
+  if (request.mode === 'navigate' ||
+      request.destination === 'style' ||
+      request.destination === 'script' ||
+      request.destination === 'font') {
+    event.respondWith(
+      fetch(request, { cache: 'no-store' })
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          return response;
+        })
+        .catch(() => caches.match(request).then((r) => r || Response.error()))
+    );
+    return;
+  }
+
+  // 其他静态资源（图片、图标等）→ Cache-first
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request))
   );

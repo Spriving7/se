@@ -1,3 +1,8 @@
+/* ========== 页面标题 ========== */
+.page-title {
+  @apply text-2xl font-bold tracking-tight bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent;
+}
+
 /* ========== 导航按钮 ========== */
 .nav-btn {
   @apply px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-300
@@ -36,9 +41,9 @@
 
 /* ========== 占位卡片 ========== */
 .placeholder-card {
-  @apply flex flex-col items-center justify-center py-16 px-6 rounded-xl
-         bg-white dark:bg-gray-800 border-2 border-dashed
-         border-gray-200 dark:border-gray-700 text-center;
+  @apply flex flex-col items-center justify-center py-16 px-6 rounded-2xl
+         bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-800/60 dark:to-gray-800/30
+         border-2 border-dashed border-gray-200 dark:border-gray-700 text-center;
 }
 
 /* ========== 返回按钮 ========== */
@@ -135,9 +140,16 @@
 
 /* ========== 小分队卡片 ========== */
 .team-card {
-  @apply bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700
-         hover:shadow-md hover:border-blue-200 dark:hover:border-blue-700
-         transition-all cursor-pointer active:scale-[0.99];
+  @apply relative bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700
+         hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-600
+         transition-all cursor-pointer active:scale-[0.99] overflow-hidden;
+}
+.team-card::before {
+  content: '';
+  @apply absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-400 to-cyan-400 opacity-0 transition-opacity;
+}
+.team-card:hover::before {
+  @apply opacity-100;
 }
 
 /* ========== 成员头像 ========== */
@@ -149,12 +161,12 @@
 /* ========== 费用卡片 ========== */
 .expense-card {
   @apply bg-white dark:bg-gray-800/80 rounded-xl p-4 border border-gray-200 dark:border-gray-700
-         hover:shadow-md hover:border-blue-300 dark:hover:border-blue-600 transition-all;
+         hover:shadow-lg hover:border-blue-300 dark:hover:border-blue-600 transition-all;
 }
 
 .expense-category-icon {
-  @apply w-10 h-10 rounded-lg flex items-center justify-center text-xl
-         bg-gray-100 dark:bg-gray-700;
+  @apply w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0
+         bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-700 dark:to-gray-600;
 }
 
 /* ========== AA Tab ========== */
@@ -180,8 +192,12 @@
 
 /* ========== 汇总卡片 ========== */
 .summary-card {
-  @apply bg-white dark:bg-gray-800/80 rounded-xl p-5 border border-gray-200 dark:border-gray-700
-         shadow-sm;
+  @apply relative bg-white dark:bg-gray-800/80 rounded-xl p-5 border border-gray-200 dark:border-gray-700
+         shadow-sm overflow-hidden;
+}
+.summary-card::before {
+  content: '';
+  @apply absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-cyan-400;
 }
 .aa-summary-container:not(.hidden) {
   display: grid;
@@ -189,11 +205,23 @@
 
 /* ========== 选择人员 checkbox ========== */
 .member-check {
-  @apply flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600
-         cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors;
+  @apply flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-gray-200 dark:border-gray-600
+         cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-all relative;
+}
+.member-check .check-indicator {
+  @apply w-5 h-5 rounded-full border-2 border-gray-300 dark:border-gray-500
+         flex items-center justify-center ml-auto transition-all text-white text-xs;
 }
 .member-check.checked {
-  @apply border-primary-500 bg-primary-50 dark:bg-primary-900/20;
+  @apply border-primary-500 bg-primary-50 dark:bg-primary-900/30 shadow-sm;
+}
+.member-check.checked .check-indicator {
+  @apply border-primary-500 bg-primary-500;
+}
+.member-check.checked .check-indicator::after {
+  content: '✓';
+  font-weight: 700;
+  font-size: 0.75rem;
 }
 
 /* ========== Toast 提示 ========== */

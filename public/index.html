@@ -179,8 +179,9 @@
 
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">输入邀请码</label>
-        <input id="joinCode" type="text" placeholder="输入6位邀请码" maxlength="6"
-          class="form-input text-center text-2xl tracking-[0.3em] uppercase">
+        <input id="joinCode" type="text" placeholder="ABC123" maxlength="6"
+          class="form-input text-center text-2xl tracking-[0.25em] uppercase font-medium">
+        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1.5 text-center">向队长获取 6 位邀请码</p>
       </div>
 
       <div class="flex gap-3 mt-6">
@@ -569,38 +570,45 @@
       </div>
 
       <div class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">费用描述 <span class="text-red-500">*</span></label>
-          <input id="expenseDesc" type="text" placeholder="例：海鲜大餐" maxlength="50" class="form-input">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="col-span-2">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">费用描述 <span class="text-red-500">*</span></label>
+            <input id="expenseDesc" type="text" placeholder="例：海鲜大餐" maxlength="50" class="form-input">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">金额 <span class="text-red-500">*</span></label>
+            <input id="expenseAmount" type="number" placeholder="0.00" min="0.01" step="0.01" class="form-input">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">分类</label>
+            <select id="expenseCategory" class="form-input">
+              <option value="food">🍔 餐饮</option>
+              <option value="transport">🚕 交通</option>
+              <option value="accommodation">🏨 住宿</option>
+              <option value="tickets">🎫 门票</option>
+              <option value="shopping">🛍️ 购物</option>
+              <option value="other">💵 其他</option>
+            </select>
+          </div>
         </div>
+
+        <!-- 分隔线 -->
+        <div class="h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-600 to-transparent"></div>
+
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">金额 <span class="text-red-500">*</span></label>
-          <input id="expenseAmount" type="number" placeholder="0.00" min="0.01" step="0.01" class="form-input">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">分类</label>
-          <select id="expenseCategory" class="form-input">
-            <option value="food">🍔 餐饮</option>
-            <option value="transport">🚕 交通</option>
-            <option value="accommodation">🏨 住宿</option>
-            <option value="tickets">🎫 门票</option>
-            <option value="shopping">🛍️ 购物</option>
-            <option value="other">💵 其他</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">付款人</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">💵 付款人</label>
           <select id="expensePayer" class="form-input">
             <!-- 由 JS 填充 -->
           </select>
+          <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">实际垫付这笔费用的人</p>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">分摊人</label>
+          <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">👥 分摊给</label>
           <div id="expenseSplitAmong" class="flex flex-wrap gap-2">
             <!-- 由 JS 填充 -->
           </div>
-          <div class="flex gap-2 mt-2">
-            <button type="button" onclick="selectAllSplitMembers()" class="text-xs text-primary-600 dark:text-primary-400 hover:underline">全选</button>
+          <div class="flex gap-3 mt-2">
+            <button type="button" onclick="selectAllSplitMembers()" class="text-xs text-primary-600 dark:text-primary-400 hover:underline font-medium">全选</button>
             <button type="button" onclick="deselectAllSplitMembers()" class="text-xs text-gray-400 hover:underline">取消全选</button>
           </div>
         </div>

@@ -1126,7 +1126,8 @@ function showExpenseModal(expenseId) {
     `<label class="member-check" data-uid="${m.id}" onclick="toggleSplitMember(this)">
        <input type="checkbox" class="hidden" checked>
        <span class="text-lg">${avatarHtml(m.avatar)}</span>
-       <span class="text-sm">${escapeHtml(m.nickname)}</span>
+       <span class="text-sm font-medium">${escapeHtml(m.nickname)}</span>
+       <span class="check-indicator"></span>
      </label>`
   ).join('');
   splitDiv.querySelectorAll('.member-check').forEach(el => el.classList.add('checked'));
