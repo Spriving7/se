@@ -179,8 +179,8 @@
 
       <div>
         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">输入邀请码</label>
-        <input id="joinCode" type="text" placeholder="请输入6位邀请码" maxlength="6"
-          class="form-input text-center text-2xl tracking-[0.5em] uppercase">
+        <input id="joinCode" type="text" placeholder="输入6位邀请码" maxlength="6"
+          class="form-input text-center text-2xl tracking-[0.3em] uppercase">
       </div>
 
       <div class="flex gap-3 mt-6">
@@ -392,16 +392,16 @@
         <div id="aaSummary" class="aa-summary-container hidden grid-cols-2 gap-3 mb-4">
           <div class="summary-card text-center">
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">总支出</p>
-            <p id="aaTotalExpense" class="text-xl font-bold text-primary-600 dark:text-primary-400">¥0</p>
+            <p id="aaTotalExpense" class="text-2xl font-bold text-primary-600 dark:text-primary-400">¥0</p>
           </div>
           <div class="summary-card text-center">
             <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">我的净余额</p>
-            <p id="aaMyBalance" class="text-xl font-bold">¥0</p>
+            <p id="aaMyBalance" class="text-2xl font-bold">¥0</p>
           </div>
         </div>
 
         <!-- Tab 切换 -->
-        <div id="aaTabs" class="aa-tabs-container hidden gap-2 mb-4 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+        <div id="aaTabs" class="aa-tabs-container hidden gap-2 mb-4 bg-gray-100 dark:bg-gray-700/80 rounded-lg p-1">
           <button class="aa-tab active" data-aatab="expenses" onclick="switchAATab('expenses')">明细</button>
           <button class="aa-tab" data-aatab="settlement" onclick="switchAATab('settlement')">结算</button>
         </div>

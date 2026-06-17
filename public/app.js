@@ -119,6 +119,7 @@ async function initApp() {
   }
 
   updateUIForUserState();
+  updateHomeHero();
 }
 
 // ========== 页面导航 ==========
@@ -148,14 +149,27 @@ function navigateTo(pageName) {
 }
 
 // ========== 首页 Hero ==========
-function updateHomeHero() {
+async function updateHomeHero() {
   const actions = document.getElementById('homeHeroActions');
   const user = getUser();
   if (user) {
+    // 尝试获取活跃小分队名称
+    let teamLabel = '小分队';
+    const teamId = getActiveTeamId();
+    if (teamId) {
+      try {
+        const res = await fetch('/teams');
+        if (res.ok) {
+          cachedTeams = await res.json();
+          const team = cachedTeams.find(t => t.id === teamId);
+          if (team) teamLabel = team.name;
+        }
+      } catch { /* ignore */ }
+    }
     actions.innerHTML = `
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-4">
         <span class="text-gray-400 text-sm">${avatarHtml(user.avatar)} ${escapeHtml(user.nickname)}</span>
-        <button onclick="navigateTo('teams')" class="px-8 py-3.5 rounded-xl font-bold text-base bg-gradient-to-r from-blue-500 to-cyan-400 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200">进入小分队 →</button>
+        <button onclick="navigateTo('teams')" class="px-8 py-3.5 rounded-xl font-bold text-base bg-gradient-to-r from-blue-500 to-cyan-400 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-200">进入${escapeHtml(teamLabel)} →</button>
       </div>`;
   } else {
     actions.innerHTML = `
@@ -2287,8 +2301,14 @@ let photoDetailTeamId = null;
 function navigateToAlbum() {
   const user = getUser();
   if (!user) { showLoginModal(); return; }
-  navigateTo('teams');
-  showToast('选择小分队后可查看相册', 'info');
+  const teamId = getActiveTeamId();
+  if (teamId) {
+    showTeamDetail(teamId);
+    setTimeout(() => switchTeamDetailTab('album', teamId), 100);
+  } else {
+    navigateTo('teams');
+    showToast('请先创建或加入一个小分队', 'info');
+  }
 }
 
 function renderTeamPhotos(team) {
