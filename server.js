@@ -10,6 +10,7 @@ const codenamesRoutes = require('./routes/codenames');
 const splendorRoutes = require('./routes/splendor');
 const photoRoutes = require('./routes/photos');
 const itineraryRoutes = require('./routes/itinerary');
+const aiRoutes = require('./routes/ai');
 
 const app = express();
 
@@ -38,6 +39,9 @@ app.use('/photos', photoRoutes);
 
 // Itinerary 路由
 app.use('/itinerary', itineraryRoutes);
+
+// AI 路由（智能行程生成）
+app.use('/ai', aiRoutes);
 
 // 所有其他路由返回 index.html（SPA fallback）
 app.get('*', (req, res) => {

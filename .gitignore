@@ -4,6 +4,15 @@ data/users.json
 data/teams.json
 data/expenses.json
 data/games.json
+data/codenames.json
+data/splendor.json
 data/photos.json
 data/itinerary.json
 data/photo_files/
+
+# 报告与海报（本地保留，不上传）
+中期报告.md
+最终报告.md
+选题报告.md
+poster.html
+poster.pptx

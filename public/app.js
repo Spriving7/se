@@ -588,6 +588,7 @@ async function joinTeam() {
 
 // 小分队详情
 let currentTeamId = null;
+let currentTeam = null;
 
 async function showTeamDetail(teamId) {
   const user = getUser();
@@ -605,6 +606,7 @@ async function showTeamDetail(teamId) {
   }
 
   currentTeamId = teamId;
+  currentTeam = team;
   setActiveTeamId(teamId);
   document.getElementById('teamDetailTitle').textContent = team.name;
 
@@ -2445,7 +2447,10 @@ function renderTeamItinerary() {
   return `
     <div class="flex items-center justify-between mb-4">
       <h3 class="font-semibold text-gray-700 dark:text-gray-300">行程安排</h3>
-      <button onclick="showItineraryModal()" class="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors">+ 添加行程</button>
+      <div class="flex gap-2">
+        <button onclick="showAiItineraryModal()" class="px-3 py-2 rounded-lg border border-primary-500 text-primary-600 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20 text-sm font-medium transition-colors">🪄 AI 生成</button>
+        <button onclick="showItineraryModal()" class="px-4 py-2 rounded-lg bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium transition-colors">+ 添加行程</button>
+      </div>
     </div>
     <div id="itineraryList">
       <div class="text-center py-8 text-gray-400"><p>加载中…</p></div>
@@ -2612,6 +2617,76 @@ async function deleteItineraryItemById(itemId) {
       showToast('行程已删除', 'info');
     } else { showToast('删除失败', 'error'); }
   } catch { showToast('网络错误', 'error'); }
+}
+
+// ========== AI 行程生成 ==========
+function showAiItineraryModal() {
+  if (!itineraryDetailTeamId) { showToast('请先打开一个小分队', 'error'); return; }
+  const team = currentTeam || {};
+  document.getElementById('aiDest').value = team.destination || '';
+  document.getElementById('aiStartDate').value = team.startDate || '';
+  document.getElementById('aiEndDate').value = team.endDate || '';
+  document.getElementById('aiPeople').value = (team.members && team.members.length) || 2;
+  document.getElementById('aiPrefs').value = '';
+  resetAiGenerateBtn();
+  document.getElementById('aiItineraryModal').classList.remove('hidden');
+}
+
+function closeAiItineraryModal() {
+  document.getElementById('aiItineraryModal').classList.add('hidden');
+  resetAiGenerateBtn();
+}
+
+function resetAiGenerateBtn() {
+  const btn = document.getElementById('aiGenerateBtn');
+  const cancel = document.getElementById('aiCancelBtn');
+  if (!btn) return;
+  btn.disabled = false;
+  cancel.disabled = false;
+  btn.classList.remove('opacity-60', 'cursor-not-allowed');
+  cancel.classList.remove('opacity-60', 'cursor-not-allowed');
+  btn.textContent = '🪄 生成';
+}
+
+async function generateItinerary() {
+  const teamId = itineraryDetailTeamId;
+  const destination = document.getElementById('aiDest').value.trim();
+  const startDate = document.getElementById('aiStartDate').value;
+  const endDate = document.getElementById('aiEndDate').value;
+  const peopleCount = Number(document.getElementById('aiPeople').value) || 2;
+  const preferences = document.getElementById('aiPrefs').value.trim();
+
+  if (!destination) { showToast('请填写目的地', 'error'); return; }
+  if (!startDate || !endDate) { showToast('请填写日期', 'error'); return; }
+  if (startDate > endDate) { showToast('开始日期不能晚于结束日期', 'error'); return; }
+
+  const btn = document.getElementById('aiGenerateBtn');
+  const cancel = document.getElementById('aiCancelBtn');
+  btn.disabled = true;
+  cancel.disabled = true;
+  btn.classList.add('opacity-60', 'cursor-not-allowed');
+  cancel.classList.add('opacity-60', 'cursor-not-allowed');
+  btn.textContent = '生成中…';
+
+  try {
+    const res = await fetch('/ai/itinerary', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teamId, destination, startDate, endDate, peopleCount, preferences }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      closeAiItineraryModal();
+      await loadTeamItinerary(teamId);
+      showToast(`已生成 ${data.created || (data.items && data.items.length) || 0} 项行程`, 'success');
+    } else {
+      showToast(data.error || '生成失败', 'error');
+      resetAiGenerateBtn();
+    }
+  } catch {
+    showToast('网络错误', 'error');
+    resetAiGenerateBtn();
+  }
 }
 
 // ========== PWA 安装 ==========
